@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Scriptrail</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="popup.css"/>
+</head>
+<body>
+  <div class="shell">
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span class="brand-name">Scriptrail</span>
+      </div>
+      <span class="status-pill" id="status-pill">waiting</span>
+    </header>
+
+    <div class="doc-info" id="doc-info">
+      <p class="doc-title" id="doc-title">No document open</p>
+      <p class="doc-sub" id="doc-sub">Open a Google Doc to start tracking</p>
+    </div>
+
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card">
+        <span class="stat-value" id="stat-keystrokes">—</span>
+        <span class="stat-label">keystrokes</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="stat-active">—</span>
+        <span class="stat-label">active time</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="stat-pastes">—</span>
+        <span class="stat-label">pastes</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="stat-deletes">—</span>
+        <span class="stat-label">deletes</span>
+      </div>
+    </div>
+
+    <div class="timeline-section">
+      <p class="section-label">activity timeline</p>
+      <div class="timeline-bar" id="timeline-bar">
+        <div class="timeline-empty">No activity yet</div>
+      </div>
+    </div>
+
+    <div class="sessions-section" id="sessions-section">
+      <p class="section-label">sessions</p>
+      <div class="sessions-list" id="sessions-list"></div>
+    </div>
+
+    <footer class="bottom-bar">
+      <button class="btn-ghost" id="btn-clear">Clear data</button>
+      <button class="btn-primary" id="btn-export">Export report</button>
+    </footer>
+
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
