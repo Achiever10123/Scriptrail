@@ -1,0 +1,40 @@
+Google Docs Page
+      │
+      ▼
+ content.js  ──────────────────────────────────┐
+ (injected into page)                          │
+ - Listens for keystrokes                      │
+ - Detects paste events                        │
+ - Tracks idle time                            │
+ - Records timestamps                          │
+      │                                        │
+      │ chrome.runtime.sendMessage             │
+      ▼                                        │
+ background.js                                 │
+ (service worker)                              │
+ - Receives events from content.js             │
+ - Processes & organizes data                  │
+ - Saves to chrome.storage                     │
+      │                                        │
+      │ chrome.storage                         │
+      ▼                                        │
+ popup.html / popup.js                         │
+ (what teacher/user sees)                      │
+ - Reads from storage                          │
+ - Displays stats & timeline                   │
+ - Export report button                        │
+
+
+
+
+
+
+
+ Key Improvements Over Aidify
+Since you're building this to be better:
+
+No server — all data stays in the browser locally (big privacy win)
+Student view — students can see their own stats too, not just teachers
+Richer events — track deletions, selections, idle gaps separately
+Visual timeline — show a graph of writing activity over time
+Multi-doc support — track across multiple documents at once
