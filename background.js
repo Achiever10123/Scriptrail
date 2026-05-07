@@ -1,125 +1,84 @@
-// background.js — service worker
-// Receives events from content.js, organises and saves them to chrome.storage
-
-// ─── Listen for events from content.js ──────────────────
+// ─── background.js ────────────────────────────────────────────────────────────
+// Service worker for Scriptrail.
+// Responsibilities:
+//   1. Open the report tab when requested by content.js
+//   2. Relay toggle (show/hide button) messages to all open Google Docs tabs
+//   3. Forward shared edit data back to the originating tab
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action !== 'TRACK_EVENT') return;
 
-  const event = message.payload;
+  // ── 1. Open Report Tab ──────────────────────────────────────────────────────
+  if (message.action === "openReportTab") {
+    const params = new URLSearchParams({
+      id:       message.id,
+      token:    message.token,
+      title:    message.title,
+      baseurl:  message.baseurl
+    });
 
-  handleEvent(event);
-  sendResponse({ status: 'ok' });
-  return true; // keeps the message channel open for async
+    const url = chrome.runtime.getURL("report.html") + "?" + params.toString();
+
+    chrome.tabs.create({ url }, (tab) => {
+      const tabId = tab.id;
+
+      // Wait until the tab is fully loaded before sending chapter data
+      const waitForLoad = () => {
+        chrome.tabs.get(tabId, (updatedTab) => {
+          if (chrome.runtime.lastError) return;
+          if (updatedTab.status === "complete") {
+            chrome.tabs.sendMessage(tabId, {
+              action: "init",
+              tabs: message.tabs
+            });
+          } else {
+            setTimeout(waitForLoad, 100);
+          }
+        });
+      };
+
+      waitForLoad();
+    });
+  }
+
+  // ── 2. Toggle Button Visibility on All Docs Tabs ────────────────────────────
+  if (message.action === "toggleUpdate") {
+    _broadcastToDocs({
+      type: "toggle",
+      toggleValue: message.toggleValue
+    });
+  }
+
+  // ── 3. Forward Shared Edit Data Back to the Sending Tab ────────────────────
+  if (message.type === "setData") {
+    const tabId = sender.tab?.id;
+    if (tabId !== undefined) {
+      chrome.tabs.sendMessage(tabId, {
+        type: "sharedData",
+        payload: message.payload
+      });
+    }
+  }
+
+  // ── 4. Refresh Data (re-relay to sending tab) ───────────────────────────────
+  if (message.action === "refreshData") {
+    const tabId = sender.tab?.id;
+    if (tabId !== undefined) {
+      chrome.tabs.sendMessage(tabId, {
+        action: "refreshData",
+        payload: message.payload
+      });
+    }
+  }
 });
 
-// ─── Main Handler ────────────────────────────────────────
-
-async function handleEvent(event) {
-  const { docId, docTitle, type, timestamp } = event;
-
-  // Load existing data for this doc (or create fresh structure)
-  const existing = await getDocData(docId);
-
-  // Get or create the current session
-  let session = getCurrentSession(existing.sessions);
-
-  if (!session || type === 'session_start') {
-    // Start a brand new session
-    session = createSession(timestamp);
-    existing.sessions.push(session);
-    existing.docTitle = docTitle; // update title in case it changed
-  }
-
-  // Add the event to the current session
-  session.events.push({
-    type,
-    timestamp,
-    ...(event.charCount !== undefined && { charCount: event.charCount }),
-    ...(event.wordCount !== undefined && { wordCount: event.wordCount }),
-  });
-
-  // Update session summary stats
-  updateSessionStats(session, type, timestamp);
-
-  // Save back to storage
-  await saveDocData(docId, existing);
-}
-
-// ─── Session Logic ───────────────────────────────────────
-
-function getCurrentSession(sessions) {
-  if (!sessions.length) return null;
-
-  const last = sessions[sessions.length - 1];
-  const now = Date.now();
-  const GAP_LIMIT = 60 * 60 * 1000; // 1 hour gap = new session
-
-  // If user has been gone more than 1 hour, treat as a new session
-  if (now - last.lastActivity > GAP_LIMIT) return null;
-
-  return last;
-}
-
-function createSession(timestamp) {
-  return {
-    sessionId: `s_${timestamp}`,
-    startTime: timestamp,
-    lastActivity: timestamp,
-    events: [],
-    stats: {
-      keystrokes: 0,
-      deletes: 0,
-      pastes: 0,
-      pastedChars: 0,
-      idleCount: 0,
-      activeTime: 0, // ms of actual writing time
-    }
-  };
-}
-
-function updateSessionStats(session, type, timestamp) {
-  session.lastActivity = timestamp;
-
-  const s = session.stats;
-
-  if (type === 'keystroke') s.keystrokes++;
-  if (type === 'delete')    s.deletes++;
-  if (type === 'paste')     s.pastes++;
-  if (type === 'idle')      s.idleCount++;
-
-  // Calculate active time (time between first and last non-idle event)
-  const activeEvents = session.events.filter(e =>
-    e.type !== 'idle' && e.type !== 'blur'
-  );
-  if (activeEvents.length >= 2) {
-    s.activeTime = activeEvents[activeEvents.length - 1].timestamp
-                 - activeEvents[0].timestamp;
-  }
-}
-
-// ─── Storage Helpers ─────────────────────────────────────
-
-async function getDocData(docId) {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(docId, (result) => {
-      resolve(result[docId] || {
-        docId,
-        docTitle: 'Untitled',
-        sessions: []
+// ── Helper: broadcast a message to all open Google Docs tabs ──────────────────
+function _broadcastToDocs(msg) {
+  chrome.tabs.query({ url: "https://docs.google.com/document/*" }, (tabs) => {
+    tabs.forEach((tab) => {
+      chrome.tabs.sendMessage(tab.id, msg, () => {
+        // suppress errors for tabs without the content script yet
+        if (chrome.runtime.lastError) { /* noop */ }
       });
     });
   });
 }
-
-async function saveDocData(docId, data) {
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ [docId]: data }, resolve);
-  });
-}
-
-// ─── On Install ──────────────────────────────────────────
-
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('Scriptrail installed ✓');
-});

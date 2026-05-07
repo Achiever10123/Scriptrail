@@ -1,20 +1,39 @@
 {
-  "manifest_version": 3,
-  "name": "Writing Tracker",
+  "name": "Scriptrail",
+  "description": "Track and analyze writing activity on Google Docs — sessions, copy-paste detection, edit replay, and more.",
   "version": "1.0",
-  "description": "Track writing activity on Google Docs",
+  "manifest_version": 3,
   "permissions": ["storage", "tabs"],
-  "host_permissions": ["https://docs.google.com/*"],
-  "content_scripts": [
-    {
-      "matches": ["https://docs.google.com/document/*"],
-      "js": ["content.js"]
-    }
-  ],
+  "host_permissions": [],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icons/icon128.png"
+  },
   "background": {
     "service_worker": "background.js"
   },
-  "action": {
-    "default_popup": "popup.html"
+  "content_scripts": [
+    {
+      "js": ["content.js", "infoBar.js"],
+      "matches": ["https://docs.google.com/document/*"],
+      "all_frames": true,
+      "match_about_blank": true,
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "report.html",
+        "report.js",
+        "report.css",
+        "docsStyle.css",
+        "libs/chart.min.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "icons": {
+    "128": "icons/icon128.png"
   }
 }

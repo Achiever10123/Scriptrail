@@ -1,15 +1,178 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <title>Scriptrail Report</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="report.css"/>
-</head>
-<body>
-  <div id="root">
-    <p style="padding:40px;font-family:monospace;color:#555">Loading report...</p>
-  </div>
-  <script src="exporter.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scriptrail Report</title>
+    <link rel="stylesheet" href="report.css" />
+  </head>
+  <body>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay">
+      <div id="loadingSpinner"></div>
+      <p id="loadingMessage">Fetching revision data…</p>
+    </div>
+
+    <!-- Page Header -->
+    <header>
+      <div class="header-brand">
+        <img src="icons/icon128.png" alt="Scriptrail" class="header-icon" />
+        <span class="header-name">Scriptrail</span>
+      </div>
+      <h1 id="docTitle">Loading document…</h1>
+    </header>
+
+    <main>
+
+      <!-- ── Replay Section ──────────────────────────────────────────────────── -->
+      <section id="replaySection" class="card">
+        <h2 class="section-title">Edit Replay</h2>
+
+        <div class="replay-controls">
+          <button id="prevEditBtn" title="Previous Edit">&#9664;</button>
+          <button id="playBtn">Play</button>
+          <button id="nextEditBtn" title="Next Edit">&#9654;</button>
+
+          <input type="range" id="playbackSlider" min="0" value="0" />
+
+          <label for="speedSelect">Speed</label>
+          <select id="speedSelect">
+            <option value="0.1">1 – Slow</option>
+            <option value="0.25">2</option>
+            <option value="0.5">3</option>
+            <option value="1">4</option>
+            <option value="2" selected>5</option>
+            <option value="3">6</option>
+            <option value="5">7</option>
+            <option value="7">8</option>
+            <option value="10">9</option>
+            <option value="12">10 – Fast</option>
+          </select>
+        </div>
+
+        <div class="replay-meta">
+          <p id="replayDate"></p>
+          <div class="highlight-row">
+            <label for="highlightUserSelect">Highlight user:</label>
+            <select id="highlightUserSelect">
+              <option value="default">None</option>
+            </select>
+            <span class="tooltip-wrap">
+              ⓘ
+              <span class="tooltip-text">
+                Selected user's edits appear <span class="mark-hl">green</span>;
+                all others appear <span class="mark-ins">yellow</span>.
+              </span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Document tabs sidebar + playback area -->
+        <div class="replay-body">
+          <div id="tabsPanel">
+            <h4>Document Tabs</h4>
+            <div id="tabsContainer"></div>
+            <hr />
+            <div id="docStats">
+              <h4>Stats for <span class="stat-user-label">All Users</span></h4>
+              <p class="stat-row" id="statWords"></p>
+              <p class="stat-row" id="statDeletes"></p>
+              <p class="stat-row" id="statTime"></p>
+              <p class="stat-row" id="statEdits"></p>
+            </div>
+            <br />
+            <button id="groupBreakdownBtn">Group Breakdown</button>
+            <div id="groupBreakdownColors"></div>
+          </div>
+
+          <div id="playbackArea"></div>
+        </div>
+      </section>
+
+      <!-- ── Report Section ──────────────────────────────────────────────────── -->
+      <section id="reportSection" class="card">
+        <div class="report-header-row">
+          <h2 class="section-title">
+            Writing Report — <span id="reportUserLabel">All Users</span>
+          </h2>
+          <div>
+            <label for="userSelect">Filter user:</label>
+            <select id="userSelect">
+              <option value="default">All Users</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Copy/Paste Detection -->
+        <div id="copyPasteSection">
+          <h3>
+            External Copy/Pasted Text
+            <span id="copyCount"></span>
+            <span class="tooltip-wrap">
+              ⓘ
+              <span class="tooltip-text">Text pasted from an external source not previously in the document.</span>
+            </span>
+          </h3>
+          <label class="checkbox-row">
+            <input type="checkbox" id="showLinksCheckbox" checked />
+            Show Hyperlinks
+          </label>
+          <div id="copyCardContainer" class="card-grid"></div>
+          <div class="btn-row">
+            <button id="showAllCopyBtn">Show All</button>
+            <button id="hideCopyBtn" style="display:none">Show Less</button>
+          </div>
+        </div>
+
+        <!-- Graphs -->
+        <div id="graphSection">
+          <h3>
+            Edits per Date — <span class="report-user-span">All Users</span>
+            <span class="tooltip-wrap">ⓘ<span class="tooltip-text">Total changes made per day (inserts + deletes). A paste = 1 edit.</span></span>
+          </h3>
+          <p class="chart-hint">Click a bar to drill into that day's hourly breakdown.</p>
+          <canvas id="dateChart" class="chart-canvas"></canvas>
+
+          <h3>
+            Edits by Hour — <span class="report-user-span">All Users</span>
+            on <span id="hourChartDateLabel">All Dates</span>
+          </h3>
+          <button id="resetTimeChartBtn" style="display:none">View All Dates</button>
+          <canvas id="timeChart" class="chart-canvas"></canvas>
+
+          <h3>Time Spent per Date — <span class="report-user-span">All Users</span></h3>
+          <canvas id="timePerDayChart" class="chart-canvas"></canvas>
+        </div>
+
+        <!-- Writing Sessions -->
+        <div id="sessionsSection">
+          <h3>
+            Writing Sessions — <span class="report-user-span">All Users</span>
+            <span id="sessionCount"></span>
+          </h3>
+          <p class="chart-hint">A continuous period of writing with no gap longer than 10 minutes.</p>
+          <div id="sessionCards"></div>
+          <div class="btn-row">
+            <button id="showAllSessionsBtn">See All</button>
+            <button id="hideSessionsBtn" style="display:none">Show Less</button>
+          </div>
+        </div>
+
+        <!-- Group Pie Chart -->
+        <div id="groupSection">
+          <h3>Group Work Breakdown</h3>
+          <select id="groupMetricSelect">
+            <option value="time">Time Spent</option>
+            <option value="edits">Edits Made</option>
+          </select>
+          <canvas id="groupPieChart" class="pie-canvas"></canvas>
+        </div>
+
+      </section>
+    </main>
+
+    <script src="libs/chart.min.js"></script>
+    <script src="report.js"></script>
+  </body>
 </html>

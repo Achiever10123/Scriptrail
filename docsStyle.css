@@ -1,0 +1,69 @@
+/* ─── docsStyle.css ────────────────────────────────────────────────────────────
+   Injected into Google Docs pages by content.js.
+   Styles the "View Report" button in the Docs toolbar.
+──────────────────────────────────────────────────────────────────────────────── */
+
+#scriptrailBtn {
+  appearance: none;
+  background-color: #1a7f4b;
+  border: 1px solid rgba(27, 31, 35, 0.15);
+  border-radius: 6px;
+  box-sizing: border-box;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-block;
+  font-family: -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  padding: 5px 14px;
+  position: relative;
+  text-align: center;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  vertical-align: middle;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+}
+
+#scriptrailBtn:hover {
+  background-color: #15693d;
+}
+
+#scriptrailBtn:focus {
+  box-shadow: 0 0 0 3px rgba(26, 127, 75, 0.35);
+  outline: none;
+}
+
+#scriptrailBtn:disabled {
+  background-color: #f2f2f2;
+  color: #999;
+  cursor: default;
+  border-color: #ddd;
+}
+
+/* Tooltip for disabled state */
+.sr-tooltip-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.sr-tooltip-wrap .sr-tooltip-text {
+  visibility: hidden;
+  font-size: 12px;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  padding: 5px 10px;
+  border-radius: 5px;
+  position: absolute;
+  z-index: 9999;
+  top: 110%;
+  left: 0;
+  white-space: nowrap;
+}
+
+.sr-tooltip-wrap:hover .sr-tooltip-text {
+  visibility: visible;
+}
