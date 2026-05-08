@@ -446,7 +446,8 @@ function _jumpToEdit(item, allEdits) {
 // 9.  CHARTS
 // ══════════════════════════════════════════════════════════════════════════════
 
-const CHART_COLOR = "rgba(61, 212, 196, 1.0)";
+const CHART_COLOR = "rgba(139, 92, 246, 1.0)";
+const CHART_LINE_COLOR = "rgba(6, 182, 212, 1.0)";
 
 function buildDateChart(edits) {
   const dateMap = new Map();
@@ -462,16 +463,36 @@ function buildDateChart(edits) {
 
   if (chartDate) chartDate.destroy();
   chartDate = new Chart(document.getElementById("dateChart"), {
-    type: "bar",
+    type: "line",
     data: {
       labels,
-      datasets: [{ data, backgroundColor: CHART_COLOR, borderColor: "transparent", maxBarThickness: 35 }]
+      datasets: [{
+        data,
+        borderColor: CHART_COLOR,
+        backgroundColor: 'rgba(139, 92, 246, 0.08)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: CHART_COLOR,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        pointHoverBackgroundColor: CHART_LINE_COLOR
+      }]
     },
     options: {
       plugins: { legend: { display: false } },
       scales: {
-        x: { title: { display: true, text: "Date" } },
-        y: { title: { display: true, text: "Edits" }, beginAtZero: true }
+        x: { 
+          title: { display: true, text: "Date" },
+          grid: { color: 'rgba(139, 92, 246, 0.05)' }
+        },
+        y: { 
+          title: { display: true, text: "Edits" }, 
+          beginAtZero: true,
+          grid: { color: 'rgba(139, 92, 246, 0.05)' }
+        }
       },
       onClick(_, elements) {
         if (elements.length > 0) {
@@ -520,16 +541,36 @@ function buildHourChart(edits, filterDate) {
 
   if (chartTime) chartTime.destroy();
   chartTime = new Chart(document.getElementById("timeChart"), {
-    type: "bar",
+    type: "line",
     data: {
       labels,
-      datasets: [{ data, backgroundColor: CHART_COLOR, borderColor: "transparent", maxBarThickness: 35 }]
+      datasets: [{
+        data,
+        borderColor: CHART_COLOR,
+        backgroundColor: 'rgba(139, 92, 246, 0.08)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: CHART_COLOR,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        pointHoverBackgroundColor: CHART_LINE_COLOR
+      }]
     },
     options: {
       plugins: { legend: { display: false } },
       scales: {
-        x: { title: { display: true, text: "Hour of Day" } },
-        y: { title: { display: true, text: "Edits" }, beginAtZero: true }
+        x: { 
+          title: { display: true, text: "Hour of Day" },
+          grid: { color: 'rgba(139, 92, 246, 0.05)' }
+        },
+        y: { 
+          title: { display: true, text: "Edits" }, 
+          beginAtZero: true,
+          grid: { color: 'rgba(139, 92, 246, 0.05)' }
+        }
       }
     }
   });
@@ -556,16 +597,36 @@ function buildTimePerDayChart(edits) {
 
   if (chartTimePerDay) chartTimePerDay.destroy();
   chartTimePerDay = new Chart(document.getElementById("timePerDayChart"), {
-    type: "bar",
+    type: "line",
     data: {
       labels,
-      datasets: [{ data, backgroundColor: CHART_COLOR, borderColor: "transparent", maxBarThickness: 35 }]
+      datasets: [{
+        data,
+        borderColor: CHART_COLOR,
+        backgroundColor: 'rgba(139, 92, 246, 0.08)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: CHART_COLOR,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        pointHoverBackgroundColor: CHART_LINE_COLOR
+      }]
     },
     options: {
       plugins: { legend: { display: false } },
       scales: {
-        x: { title: { display: true, text: "Date" } },
-        y: { title: { display: true, text: "Minutes" }, beginAtZero: true }
+        x: { 
+          title: { display: true, text: "Date" },
+          grid: { color: 'rgba(139, 92, 246, 0.05)' }
+        },
+        y: { 
+          title: { display: true, text: "Minutes" }, 
+          beginAtZero: true,
+          grid: { color: 'rgba(139, 92, 246, 0.05)' }
+        }
       }
     }
   });
@@ -590,14 +651,34 @@ async function buildGroupPieChart(edits, users, metric = "time") {
 
   if (chartGroupPie) chartGroupPie.destroy();
   chartGroupPie = new Chart(document.getElementById("groupPieChart"), {
-    type: "pie",
+    type: "doughnut",
     data: {
       labels: names,
-      datasets: [{ data, backgroundColor: colors, borderColor: colors, borderWidth: 1 }]
+      datasets: [{
+        data,
+        backgroundColor: colors.map(c => c + '20'),
+        borderColor: colors,
+        borderWidth: 3,
+        hoverOffset: 12
+      }]
     },
     options: {
       plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            font: { size: 12, weight: '600' },
+            padding: 15,
+            usePointStyle: true
+          }
+        },
         tooltip: {
+          backgroundColor: 'rgba(30, 27, 75, 0.9)',
+          titleFont: { size: 13, weight: '700' },
+          bodyFont: { size: 12, weight: '600' },
+          padding: 12,
+          borderColor: 'rgba(139, 92, 246, 0.5)',
+          borderWidth: 1,
           callbacks: {
             label(ctx) {
               return metric === "time" ? `${ctx.parsed} min` : `${ctx.parsed} edits`;
@@ -883,7 +964,38 @@ function cleanUserMap(edits, rawUserMap) {
 // 15.  ENTRY POINT — DOMContentLoaded
 // ══════════════════════════════════════════════════════════════════════════════
 
+// Dark mode functions
+function initializeDarkMode() {
+  const darkModeBtn = document.getElementById("darkModeToggle");
+  const savedTheme = localStorage.getItem("scriptrail-theme") || "light";
+
+  // Apply saved theme
+  if (savedTheme === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+    if (darkModeBtn) darkModeBtn.textContent = "☀️";
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+    if (darkModeBtn) darkModeBtn.textContent = "🌙";
+  }
+
+  // Add toggle listener
+  if (darkModeBtn) {
+    darkModeBtn.addEventListener("click", () => {
+      const currentTheme = document.documentElement.getAttribute("data-theme");
+      const newTheme = currentTheme === "dark" ? "light" : "dark";
+
+      document.documentElement.setAttribute("data-theme", newTheme);
+      localStorage.setItem("scriptrail-theme", newTheme);
+
+      darkModeBtn.textContent = newTheme === "dark" ? "☀️" : "🌙";
+    });
+  }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
+  // Initialize dark mode first
+  initializeDarkMode();
+
   Chart.defaults.font.size = 13;
 
   const params = new URLSearchParams(window.location.search);

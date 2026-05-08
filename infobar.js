@@ -16,11 +16,22 @@ function _ctxOk() {
 // CLOSE STATE  — persists across data refreshes so bar stays hidden
 // ══════════════════════════════════════════════════════════════════════════════
 let _barDismissed = false; // user clicked ×
-let _lastWritingTime = "0 sec";
 let _lastCopiedCount = 0;
 let _lastSessionCount = 0;
-let _calculatedWritingTimeMs = 0; // writing time calculated from edits (in ms)
-let _lastCalculatedTime = Date.now(); // when we last calculated writing time
+
+// ── Live-tick state (mirrors report.js calcSessions algorithm exactly) ────────
+// After each API refresh we store:
+//   _baseWritingTimeMs  — calcTotalWritingTime() result from the revision data
+//   _lastFetchTime      — wall-clock Date.now() when we last received fresh data
+//
+// Every second the live tick checks: is the current wall-clock time still within
+// SESSION_GAP of the last edit?  If yes, the current session is still "open" and
+// we add (now - _lastFetchTime) to _baseWritingTimeMs to get the live total —
+// exactly what report.js would show if it recalculated right now.
+const _IB_SESSION_GAP = 600_000; // 10 min — must match report.js SESSION_GAP
+let _baseWritingTimeMs = 0;
+let _lastFetchTime = 0;  // wall-clock time of the last API refresh
+let _liveTickInterval = null;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // INFO BAR DOM
@@ -32,7 +43,7 @@ function createInfoBar() {
   const style = document.createElement("style");
   style.textContent = `
     #scriptrailInfoBar {
-      display: none;
+      display: block;
       text-align: center;
       font-size: 13px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -91,14 +102,13 @@ function _showInfoBar() {
 }
 
 function _hideInfoBar() {
-  _barDismissed = true; // ← remember user closed it
+  _barDismissed = true;
   const bar = document.getElementById("scriptrailInfoBar");
   if (bar) bar.style.display = "none";
   _createToggleIcon();
   _clickNavClose();
 }
 
-// Only show the bar if the user has not dismissed it
 function _maybeShowBar() {
   if (_barDismissed) return;
   const bar = document.getElementById("scriptrailInfoBar");
@@ -106,17 +116,15 @@ function _maybeShowBar() {
 }
 
 function updateInfoBar(writingTime, copiedCount, sessionCount) {
-  createInfoBar(); // no-op if already created
+  createInfoBar();
   const bar = document.getElementById("scriptrailInfoBar");
   if (!bar) return;
 
-  // Cache latest values (used by the 1-second writing time tick)
-  _lastWritingTime = writingTime;
   _lastCopiedCount = copiedCount;
   _lastSessionCount = sessionCount;
 
   _renderBarContent(bar, writingTime, copiedCount, sessionCount);
-  _maybeShowBar(); // only shows if NOT dismissed
+  _maybeShowBar();
 }
 
 function _renderBarContent(bar, writingTime, copiedCount, sessionCount) {
@@ -133,16 +141,39 @@ function _renderBarContent(bar, writingTime, copiedCount, sessionCount) {
     ?.addEventListener("click", _hideInfoBar);
 }
 
-// Called every second by content.js writingTimeTick — only updates the
-// writing time span, leaving copied/sessions untouched, and NEVER forces
-// the bar visible.
+// Updates only the writing-time <strong> every second — never forces bar visible.
 function _updateWritingTimeOnly(writingTime) {
-  _lastWritingTime = writingTime;
   const bar = document.getElementById("scriptrailInfoBar");
   if (!bar || _barDismissed) return;
-
   const span = bar.querySelector(".sr-section strong");
-  if (span) span.textContent = writingTime; // update just the first <strong>
+  if (span) span.textContent = writingTime;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LIVE TICK — updates writing time every second using the same logic as report.js
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Returns what report.js calcTotalWritingTime() would return if called right now.
+// If the user is actively writing (within SESSION_GAP of the last revision edit),
+// the current session is still open so we extend it by elapsed wall-clock time.
+function _getLiveWritingTimeMs() {
+  if (_lastFetchTime === 0) return _baseWritingTimeMs;
+
+  const elapsedSinceLastFetch = Date.now() - _lastFetchTime;
+
+  // Keep ticking as long as the API keeps sending fresh data (every 5s).
+  // If we stop receiving data (tab backgrounded, idle > SESSION_GAP), freeze.
+  }
+
+  if (elapsedSinceLastFetch < _IB_SESSION_GAP) {
+  return _baseWritingTimeMs;
+}
+
+function _startLiveTick() {
+  if (_liveTickInterval) return;
+  _liveTickInterval = setInterval(() => {
+    _updateWritingTimeOnly(formatWritingTime(_getLiveWritingTimeMs()));
+  }, 1000);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -168,26 +199,27 @@ function getWritingSessionCount(edits) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// WRITING TIME FROM EDIT HISTORY (matches report.js calculation)
+// WRITING TIME FROM EDIT HISTORY — exact mirror of report.js calcSessions logic
 // ══════════════════════════════════════════════════════════════════════════════
 function getWritingTimeFromEdits(edits) {
-  const SESSION_GAP = 600_000; // 10 minutes
+  // Mirrors report.js calcSessions() + calcTotalWritingTime() exactly.
+  // Each session spans from its first edit to its last edit.
+  // A gap > SESSION_GAP between consecutive edits ends the current session.
+  const SESSION_GAP = 600_000;
   if (!edits || edits.length === 0) return 0;
 
-  let totalDuration = 0;
+  let total = 0;
   let sessionStart = edits[0].time;
 
   for (let i = 0; i < edits.length - 1; i++) {
     const gap = edits[i + 1].time - edits[i].time;
     if (gap > SESSION_GAP) {
-      totalDuration += edits[i].time - sessionStart;
+      total += edits[i].time - sessionStart;
       sessionStart = edits[i + 1].time;
     }
   }
-
-  // Add final session
-  totalDuration += edits[edits.length - 1].time - sessionStart;
-  return totalDuration;
+  total += edits[edits.length - 1].time - sessionStart;
+  return total;
 }
 
 function formatWritingTime(ms) {
@@ -202,14 +234,13 @@ function formatWritingTime(ms) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // COPY / PASTE DETECTION  (same doc-replay logic as report.js)
-// Lower MIN_LEN to catch more realistic pastes; skip pure URLs optionally.
 // ══════════════════════════════════════════════════════════════════════════════
 async function getCopiedCount(edits) {
   try {
     if (!edits || edits.length === 0) return 0;
 
     const TIMEOUT_MS = 5000;
-    const MIN_LEN = 20; // lowered from 50 — catches shorter pastes too
+    const MIN_LEN = 20;
     const t0 = performance.now();
 
     const tabArr = [...new Set(edits.map((e) => e.tab || "first"))];
@@ -291,15 +322,9 @@ function setupInfoBarListener() {
     chrome.runtime.onMessage.addListener(async (msg) => {
       if (!_ctxOk()) return;
 
-      // ── Live writing time tick from content.js (every 1 second) ───────────
-      if (msg?.type === "writingTimeTick") {
-        // Calculate estimated writing time: base calculated time + elapsed time since last calc
-        const elapsedSinceCalc = Date.now() - _lastCalculatedTime;
-        const estimatedWritingTimeMs =
-          _calculatedWritingTimeMs + elapsedSinceCalc;
-        _updateWritingTimeOnly(formatWritingTime(estimatedWritingTimeMs));
-        return;
-      }
+      // writingTimeTick is still sent by content.js every second but we no
+      // longer use it — the live tick interval does the job from revision data.
+      if (msg?.type === "writingTimeTick") return;
 
       // ── Full data refresh from revision API ───────────────────────────────
       if (msg?.type !== "sharedData" && msg?.action !== "refreshData") return;
@@ -310,7 +335,6 @@ function setupInfoBarListener() {
         return;
       }
 
-      // Show "calculating…" only if bar is currently visible
       if (!_barDismissed) {
         createInfoBar();
         const bar = document.getElementById("scriptrailInfoBar");
@@ -321,18 +345,21 @@ function setupInfoBarListener() {
       }
 
       const sessionCount = getWritingSessionCount(edits);
-      const copiedCount = await getCopiedCount(edits);
+      const copiedCount  = await getCopiedCount(edits);
       const writingTimeMs = getWritingTimeFromEdits(edits);
 
       if (!_ctxOk()) return;
 
-      // Update calculated writing time and timestamp for live timer to use
-      _calculatedWritingTimeMs = writingTimeMs;
-      _lastCalculatedTime = Date.now();
+      // Store base time and last-edit timestamp for the live tick to extend
+      _baseWritingTimeMs = writingTimeMs;
+      _lastFetchTime = Date.now(); // wall-clock time of this refresh
 
-      // Format and display the calculated writing time
-      const writingTimeFormatted = formatWritingTime(writingTimeMs);
+      // Display current live value (already extends the open session if active)
+      const writingTimeFormatted = formatWritingTime(_getLiveWritingTimeMs());
       updateInfoBar(writingTimeFormatted, copiedCount, sessionCount);
+
+      // Start the 1-second tick if not already running
+      _startLiveTick();
     });
   } catch (err) {
     console.error("[Scriptrail infoBar] Listener setup failed:", err);
@@ -340,3 +367,8 @@ function setupInfoBarListener() {
 }
 
 setupInfoBarListener();
+
+// Show the bar immediately on load so the user sees "loading…"
+// _maybeShowBar() will keep it visible once data arrives.
+createInfoBar();
+_maybeShowBar();
