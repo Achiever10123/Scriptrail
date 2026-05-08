@@ -16,7 +16,9 @@ function safeSend(msg) {
   if (!isCtxValid()) return;
   try {
     chrome.runtime.sendMessage(msg, () => {
-      if (chrome.runtime.lastError) { /* swallow */ }
+      if (chrome.runtime.lastError) {
+        /* swallow */
+      }
     });
   } catch (_) {}
 }
@@ -48,12 +50,12 @@ const _urlMatch = window.location.href.match(/\/document\/d\/([^/]+)/);
 const documentId = _urlMatch ? _urlMatch[1] : "";
 
 const _embedMeta = document.querySelector('meta[itemprop="embedURL"]');
-const _ogMeta    = document.querySelector('meta[property="og:url"]');
+const _ogMeta = document.querySelector('meta[property="og:url"]');
 const _sourceUrl =
   _embedMeta?.getAttribute("content") ||
   _ogMeta?.getAttribute("content") ||
   window.location.href;
-const _dIdx  = _sourceUrl.indexOf("/d/");
+const _dIdx = _sourceUrl.indexOf("/d/");
 const baseurl =
   _dIdx !== -1
     ? _sourceUrl.substring(0, _dIdx + 3)
@@ -81,7 +83,10 @@ function extractToken() {
               frag = frag.substring(st);
               try {
                 const p = JSON.parse(frag);
-                if (p.token) { documentToken = p.token; return true; }
+                if (p.token) {
+                  documentToken = p.token;
+                  return true;
+                }
               } catch (_) {}
             }
           }
@@ -90,7 +95,10 @@ function extractToken() {
     }
     if (!documentToken && txt.includes('"token":"')) {
       const tm = txt.match(/"token":"([^"]+)"/);
-      if (tm?.[1]) { documentToken = tm[1]; return true; }
+      if (tm?.[1]) {
+        documentToken = tm[1];
+        return true;
+      }
     }
   }
   return false;
@@ -99,14 +107,17 @@ function extractToken() {
 let _tokenRetries = 0;
 function tryExtractToken() {
   if (documentToken || _tokenRetries > 30) return;
-  if (!extractToken()) { _tokenRetries++; setTimeout(tryExtractToken, 200); }
+  if (!extractToken()) {
+    _tokenRetries++;
+    setTimeout(tryExtractToken, 200);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // WRITING TIME  — MS Word style: real elapsed time while tab is active
 // ══════════════════════════════════════════════════════════════════════════════
-let _writingMs       = 0;   // total accumulated ms
-let _sessionStart    = null; // Date.now() when current active period began
+let _writingMs = 0; // total accumulated ms
+let _sessionStart = null; // Date.now() when current active period began
 let _writingInterval = null;
 
 function _startWritingTimer() {
@@ -117,7 +128,7 @@ function _startWritingTimer() {
 
 function _stopWritingTimer() {
   if (_sessionStart === null) return;
-  _writingMs   += Date.now() - _sessionStart;
+  _writingMs += Date.now() - _sessionStart;
   _sessionStart = null;
   clearInterval(_writingInterval);
   _writingInterval = null;
@@ -164,8 +175,8 @@ function injectStylesheet() {
   if (document.getElementById("scriptrail-style")) return;
   try {
     const link = document.createElement("link");
-    link.id   = "scriptrail-style";
-    link.rel  = "stylesheet";
+    link.id = "scriptrail-style";
+    link.rel = "stylesheet";
     link.type = "text/css";
     link.href = chrome.runtime.getURL("docsStyle.css");
     document.head.appendChild(link);
@@ -181,18 +192,25 @@ function injectButton() {
   if (!toolbar) return false;
 
   const wrapper = document.createElement("div");
-  wrapper.innerHTML = '<button id="scriptrailBtn" disabled>View Report</button>';
+  wrapper.innerHTML =
+    '<button id="scriptrailBtn" disabled>View Report</button>';
   toolbar.appendChild(wrapper);
 
   button = document.getElementById("scriptrailBtn");
-  if (button) { button.addEventListener("click", handleButtonClick); return true; }
+  if (button) {
+    button.addEventListener("click", handleButtonClick);
+    return true;
+  }
   return false;
 }
 
 let _btnRetries = 0;
 function tryInjectButton() {
   if (_btnRetries > 40) return;
-  if (!injectButton()) { _btnRetries++; setTimeout(tryInjectButton, 300); }
+  if (!injectButton()) {
+    _btnRetries++;
+    setTimeout(tryInjectButton, 300);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -218,7 +236,9 @@ function handleButtonClick() {
         tabs: chapters,
       },
     },
-    () => { safeSend({ action: "openReportTab", id: documentId }); },
+    () => {
+      safeSend({ action: "openReportTab", id: documentId });
+    },
   );
 }
 
@@ -230,17 +250,20 @@ function fetchDataForInfobar() {
   const tilesUrl = `${baseurl}${documentId}/revisions/tiles?id=${documentId}&start=1&showDetailedRevisions=false&token=${documentToken}`;
 
   fetch(tilesUrl)
-    .then((r) => { if (!r.ok) throw new Error("tiles"); return r.text(); })
+    .then((r) => {
+      if (!r.ok) throw new Error("tiles");
+      return r.text();
+    })
     .then((text) => {
-      const json      = JSON.parse(text.slice(")]}'".length));
+      const json = JSON.parse(text.slice(")]}'".length));
       const totalRevs = json.tileInfo[json.tileInfo.length - 1].end;
-      const userMap   = json.userMap;
+      const userMap = json.userMap;
       if (button) button.disabled = false;
 
       fetchRevisionData(documentId, documentToken, totalRevs)
         .then((changelog) => {
           const edits = generateEdits(changelog, []);
-          const tabs  = [...new Set(edits.map((e) => e.tab))];
+          const tabs = [...new Set(edits.map((e) => e.tab))];
           safeSend({ type: "setData", payload: { edits, userMap, tabs } });
         })
         .catch((e) => console.error("[Scriptrail] changelog:", e));
@@ -249,8 +272,8 @@ function fetchDataForInfobar() {
       console.error("[Scriptrail] tiles:", e);
       if (button) {
         button.textContent = "Report Unavailable";
-        button.title       = "You need edit access.";
-        button.disabled    = true;
+        button.title = "You need edit access.";
+        button.disabled = true;
       }
     });
 }
@@ -265,20 +288,53 @@ async function fetchRevisionData(docId, token, totalRevs) {
 function generateEdits(changelog, edits) {
   changelog.forEach((entry) => {
     let type;
-    try { type = entry[0].ty; } catch (_) {}
+    try {
+      type = entry[0].ty;
+    } catch (_) {}
     if (type === "is" || type === "iss") {
-      edits.push({ ty: "is", text: entry[0].s, loc: entry[0].ibi, time: entry[1], userId: entry[2], tab: "first" });
+      edits.push({
+        ty: "is",
+        text: entry[0].s,
+        loc: entry[0].ibi,
+        time: entry[1],
+        userId: entry[2],
+        tab: "first",
+      });
     } else if (type === "ds" || type === "dss") {
-      edits.push({ ty: "ds", si: entry[0].si, ei: entry[0].ei, time: entry[1], userId: entry[2], tab: "first" });
+      edits.push({
+        ty: "ds",
+        si: entry[0].si,
+        ei: entry[0].ei,
+        time: entry[1],
+        userId: entry[2],
+        tab: "first",
+      });
     } else if (type === "mlti") {
-      generateEdits(entry[0].mts.map((mt) => [mt, entry[1], entry[2]]), edits);
+      generateEdits(
+        entry[0].mts.map((mt) => [mt, entry[1], entry[2]]),
+        edits,
+      );
     } else if (type === "nm") {
       const nmc = entry[0].nmc;
       const tab = entry[0].nmr[1];
       if (nmc.ty === "is")
-        edits.push({ ty: "is", text: nmc.s, loc: nmc.ibi, time: entry[1], userId: entry[2], tab });
+        edits.push({
+          ty: "is",
+          text: nmc.s,
+          loc: nmc.ibi,
+          time: entry[1],
+          userId: entry[2],
+          tab,
+        });
       else if (nmc.ty === "ds")
-        edits.push({ ty: "ds", si: nmc.si, ei: nmc.ei, time: entry[1], userId: entry[2], tab });
+        edits.push({
+          ty: "ds",
+          si: nmc.si,
+          ei: nmc.ei,
+          time: entry[1],
+          userId: entry[2],
+          tab,
+        });
     }
   });
   return edits;
@@ -289,6 +345,18 @@ document.addEventListener("paste", () => {
   if (isCtxValid() && documentToken) fetchDataForInfobar();
 });
 
+// ── Debounced input/change listener for real-time copied passages updates ───
+let _refreshDebounceTimeout = null;
+function _triggerRefreshDebounced() {
+  if (!isCtxValid() || !documentToken) return;
+  clearTimeout(_refreshDebounceTimeout);
+  _refreshDebounceTimeout = setTimeout(() => {
+    fetchDataForInfobar();
+  }, 500); // wait 500ms after last input event
+}
+document.addEventListener("input", _triggerRefreshDebounced);
+document.addEventListener("compositionend", _triggerRefreshDebounced);
+
 // ── Periodic refresh (real-time updates for copy detection etc.) ──────────
 function startPeriodicRefresh() {
   if (!isCtxValid()) return;
@@ -297,14 +365,14 @@ function startPeriodicRefresh() {
       clearInterval(intervalId);
       const bar = document.getElementById("scriptrailInfoBar");
       if (bar) {
-        bar.textContent  = "Scriptrail: connection lost – reloading page…";
+        bar.textContent = "Scriptrail: connection lost – reloading page…";
         bar.style.display = "block";
       }
       setTimeout(() => location.reload(), 1500);
       return;
     }
     if (documentToken) fetchDataForInfobar();
-  }, 30000); // every 30s — infobar updates its own timer every second
+  }, 5000); // increased frequency to 5s for real-time updates
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -313,10 +381,16 @@ function startPeriodicRefresh() {
 function _broadcastWritingTime() {
   if (!isCtxValid()) return;
   try {
-    chrome.runtime.sendMessage({
-      type: "writingTimeTick",
-      writingTime: _formatWritingTime(_totalWritingMs()),
-    }, () => { if (chrome.runtime.lastError) {} });
+    chrome.runtime.sendMessage(
+      {
+        type: "writingTimeTick",
+        writingTime: _formatWritingTime(_totalWritingMs()),
+      },
+      () => {
+        if (chrome.runtime.lastError) {
+        }
+      },
+    );
   } catch (_) {}
 }
 
@@ -355,7 +429,10 @@ function setupListeners() {
 // INIT
 // ══════════════════════════════════════════════════════════════════════════════
 function init() {
-  if (!isCtxValid()) { setTimeout(init, 500); return; }
+  if (!isCtxValid()) {
+    setTimeout(init, 500);
+    return;
+  }
   injectStylesheet();
   tryExtractToken();
   tryInjectButton();

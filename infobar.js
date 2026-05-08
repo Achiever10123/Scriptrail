@@ -5,17 +5,22 @@
 // CONTEXT GUARD
 // ══════════════════════════════════════════════════════════════════════════════
 function _ctxOk() {
-  try { return typeof chrome !== "undefined" && !!chrome.runtime?.id; }
-  catch (_) { return false; }
+  try {
+    return typeof chrome !== "undefined" && !!chrome.runtime?.id;
+  } catch (_) {
+    return false;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CLOSE STATE  — persists across data refreshes so bar stays hidden
 // ══════════════════════════════════════════════════════════════════════════════
-let _barDismissed = false;   // user clicked ×
-let _lastWritingTime  = "0 sec";
-let _lastCopiedCount  = 0;
+let _barDismissed = false; // user clicked ×
+let _lastWritingTime = "0 sec";
+let _lastCopiedCount = 0;
 let _lastSessionCount = 0;
+let _calculatedWritingTimeMs = 0; // writing time calculated from edits (in ms)
+let _lastCalculatedTime = Date.now(); // when we last calculated writing time
 
 // ══════════════════════════════════════════════════════════════════════════════
 // INFO BAR DOM
@@ -58,7 +63,7 @@ function createInfoBar() {
   document.head.appendChild(style);
 
   const bar = document.createElement("div");
-  bar.id          = "scriptrailInfoBar";
+  bar.id = "scriptrailInfoBar";
   bar.textContent = "Scriptrail: loading…";
   docsBar.appendChild(bar);
 
@@ -69,9 +74,9 @@ function _createToggleIcon() {
   const sideBar = document.getElementById("docs-side-toolbar");
   if (!sideBar || document.getElementById("scriptrailToggleIcon")) return;
   const icon = document.createElement("div");
-  icon.id          = "scriptrailToggleIcon";
+  icon.id = "scriptrailToggleIcon";
   icon.textContent = "Stats";
-  icon.title       = "Show Scriptrail Stats";
+  icon.title = "Show Scriptrail Stats";
   icon.addEventListener("click", _showInfoBar);
   sideBar.appendChild(icon);
 }
@@ -86,7 +91,7 @@ function _showInfoBar() {
 }
 
 function _hideInfoBar() {
-  _barDismissed = true;           // ← remember user closed it
+  _barDismissed = true; // ← remember user closed it
   const bar = document.getElementById("scriptrailInfoBar");
   if (bar) bar.style.display = "none";
   _createToggleIcon();
@@ -101,17 +106,17 @@ function _maybeShowBar() {
 }
 
 function updateInfoBar(writingTime, copiedCount, sessionCount) {
-  createInfoBar();       // no-op if already created
+  createInfoBar(); // no-op if already created
   const bar = document.getElementById("scriptrailInfoBar");
   if (!bar) return;
 
   // Cache latest values (used by the 1-second writing time tick)
-  _lastWritingTime  = writingTime;
-  _lastCopiedCount  = copiedCount;
+  _lastWritingTime = writingTime;
+  _lastCopiedCount = copiedCount;
   _lastSessionCount = sessionCount;
 
   _renderBarContent(bar, writingTime, copiedCount, sessionCount);
-  _maybeShowBar();       // only shows if NOT dismissed
+  _maybeShowBar(); // only shows if NOT dismissed
 }
 
 function _renderBarContent(bar, writingTime, copiedCount, sessionCount) {
@@ -123,7 +128,8 @@ function _renderBarContent(bar, writingTime, copiedCount, sessionCount) {
     <span class="sr-section">🕐 Sessions: <strong>${sessionCount}</strong></span>
     <button id="scriptrailInfoBarClose" title="Close">×</button>
   `;
-  document.getElementById("scriptrailInfoBarClose")
+  document
+    .getElementById("scriptrailInfoBarClose")
     ?.addEventListener("click", _hideInfoBar);
 }
 
@@ -136,14 +142,18 @@ function _updateWritingTimeOnly(writingTime) {
   if (!bar || _barDismissed) return;
 
   const span = bar.querySelector(".sr-section strong");
-  if (span) span.textContent = writingTime;   // update just the first <strong>
+  if (span) span.textContent = writingTime; // update just the first <strong>
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // STRING HELPERS
 // ══════════════════════════════════════════════════════════════════════════════
-function _applyInsert(str, loc, text) { return str.slice(0, loc - 1) + text + str.slice(loc - 1); }
-function _applyDelete(str, si, ei)    { return str.slice(0, si - 1) + str.slice(ei); }
+function _applyInsert(str, loc, text) {
+  return str.slice(0, loc - 1) + text + str.slice(loc - 1);
+}
+function _applyDelete(str, si, ei) {
+  return str.slice(0, si - 1) + str.slice(ei);
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SESSION COUNT
@@ -158,6 +168,39 @@ function getWritingSessionCount(edits) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// WRITING TIME FROM EDIT HISTORY (matches report.js calculation)
+// ══════════════════════════════════════════════════════════════════════════════
+function getWritingTimeFromEdits(edits) {
+  const SESSION_GAP = 600_000; // 10 minutes
+  if (!edits || edits.length === 0) return 0;
+
+  let totalDuration = 0;
+  let sessionStart = edits[0].time;
+
+  for (let i = 0; i < edits.length - 1; i++) {
+    const gap = edits[i + 1].time - edits[i].time;
+    if (gap > SESSION_GAP) {
+      totalDuration += edits[i].time - sessionStart;
+      sessionStart = edits[i + 1].time;
+    }
+  }
+
+  // Add final session
+  totalDuration += edits[edits.length - 1].time - sessionStart;
+  return totalDuration;
+}
+
+function formatWritingTime(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h} hr ${m} min ${sec} sec`;
+  if (m > 0) return `${m} min ${sec} sec`;
+  return `${sec} sec`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // COPY / PASTE DETECTION  (same doc-replay logic as report.js)
 // Lower MIN_LEN to catch more realistic pastes; skip pure URLs optionally.
 // ══════════════════════════════════════════════════════════════════════════════
@@ -166,10 +209,10 @@ async function getCopiedCount(edits) {
     if (!edits || edits.length === 0) return 0;
 
     const TIMEOUT_MS = 5000;
-    const MIN_LEN    = 20;   // lowered from 50 — catches shorter pastes too
-    const t0         = performance.now();
+    const MIN_LEN = 20; // lowered from 50 — catches shorter pastes too
+    const t0 = performance.now();
 
-    const tabArr  = [...new Set(edits.map((e) => e.tab || "first"))];
+    const tabArr = [...new Set(edits.map((e) => e.tab || "first"))];
     let docStates = tabArr.map(() => "");
 
     const candidates = edits
@@ -179,7 +222,7 @@ async function getCopiedCount(edits) {
     if (candidates.length === 0) return 0;
 
     let candPtr = 0;
-    let found   = 0;
+    let found = 0;
 
     for (let i = 0; i < edits.length; i++) {
       if (i % 500 === 0) {
@@ -192,8 +235,8 @@ async function getCopiedCount(edits) {
       if (tIdx < 0) continue;
 
       if (edit.ty === "is" && edit.text) {
-        const docBefore   = docStates[tIdx];
-        docStates[tIdx]   = _applyInsert(docStates[tIdx], edit.loc, edit.text);
+        const docBefore = docStates[tIdx];
+        docStates[tIdx] = _applyInsert(docStates[tIdx], edit.loc, edit.text);
 
         if (candPtr < candidates.length && i === candidates[candPtr]._idx) {
           if (!docBefore.includes(edit.text)) found++;
@@ -217,17 +260,23 @@ async function getCopiedCount(edits) {
 function _clickNavClose() {
   [
     document.querySelector(".navigation-widget-hat-close"),
-    document.querySelector(".miniChapterSwitcherNavigationEntryPointIcon")
+    document.querySelector(".miniChapterSwitcherNavigationEntryPointIcon"),
   ].forEach((el) => {
     if (!el) return;
     try {
       const r = el.getBoundingClientRect();
-      ["pointerdown","mousedown","mouseup","click"].forEach((t) => {
-        el.dispatchEvent(new PointerEvent(t, {
-          bubbles: true, cancelable: true,
-          clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
-          pointerId: 1, pointerType: "mouse", isPrimary: true
-        }));
+      ["pointerdown", "mousedown", "mouseup", "click"].forEach((t) => {
+        el.dispatchEvent(
+          new PointerEvent(t, {
+            bubbles: true,
+            cancelable: true,
+            clientX: r.left + r.width / 2,
+            clientY: r.top + r.height / 2,
+            pointerId: 1,
+            pointerType: "mouse",
+            isPrimary: true,
+          }),
+        );
       });
     } catch (_) {}
   });
@@ -244,7 +293,11 @@ function setupInfoBarListener() {
 
       // ── Live writing time tick from content.js (every 1 second) ───────────
       if (msg?.type === "writingTimeTick") {
-        _updateWritingTimeOnly(msg.writingTime);
+        // Calculate estimated writing time: base calculated time + elapsed time since last calc
+        const elapsedSinceCalc = Date.now() - _lastCalculatedTime;
+        const estimatedWritingTimeMs =
+          _calculatedWritingTimeMs + elapsedSinceCalc;
+        _updateWritingTimeOnly(formatWritingTime(estimatedWritingTimeMs));
         return;
       }
 
@@ -261,16 +314,25 @@ function setupInfoBarListener() {
       if (!_barDismissed) {
         createInfoBar();
         const bar = document.getElementById("scriptrailInfoBar");
-        if (bar) { bar.textContent = "Scriptrail: calculating…"; bar.style.display = "block"; }
+        if (bar) {
+          bar.textContent = "Scriptrail: calculating…";
+          bar.style.display = "block";
+        }
       }
 
       const sessionCount = getWritingSessionCount(edits);
-      const copiedCount  = await getCopiedCount(edits);
+      const copiedCount = await getCopiedCount(edits);
+      const writingTimeMs = getWritingTimeFromEdits(edits);
 
       if (!_ctxOk()) return;
 
-      // Writing time comes from the live timer, not revision timestamps
-      updateInfoBar(_lastWritingTime, copiedCount, sessionCount);
+      // Update calculated writing time and timestamp for live timer to use
+      _calculatedWritingTimeMs = writingTimeMs;
+      _lastCalculatedTime = Date.now();
+
+      // Format and display the calculated writing time
+      const writingTimeFormatted = formatWritingTime(writingTimeMs);
+      updateInfoBar(writingTimeFormatted, copiedCount, sessionCount);
     });
   } catch (err) {
     console.error("[Scriptrail infoBar] Listener setup failed:", err);
