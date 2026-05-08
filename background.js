@@ -46,6 +46,19 @@ if (message.action === "openReportTab") {
       });
     }
   }
+
+   // ── 5. Relay writing-time ticks to infoBar.js in the same tab ────────────
+  if (message.type === "writingTimeTick") {
+    const tabId = sender.tab?.id;
+    if (tabId !== undefined) {
+      chrome.tabs.sendMessage(tabId, {
+        type: "writingTimeTick",
+        writingTime: message.writingTime,
+      }, () => {
+        if (chrome.runtime.lastError) { /* tab may not have infoBar yet */ }
+      });
+    }
+  }
 });
 
 // ── Helper: broadcast a message to all open Google Docs tabs ──────────────────

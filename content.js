@@ -3,15 +3,13 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CONTEXT GUARD
-// Google Docs is a SPA. When it navigates internally, the extension context
-// gets invalidated — every chrome.* call after that throws
-// "Extension context invalidated". This guard is the single safe gate for
-// every API call. It checks chrome.runtime.id which throws (catchably) when
-// the context is gone.
 // ══════════════════════════════════════════════════════════════════════════════
 function isCtxValid() {
-  try { return typeof chrome !== "undefined" && !!chrome.runtime?.id; }
-  catch (_) { return false; }
+  try {
+    return typeof chrome !== "undefined" && !!chrome.runtime?.id;
+  } catch (_) {
+    return false;
+  }
 }
 
 function safeSend(msg) {
@@ -23,21 +21,43 @@ function safeSend(msg) {
   } catch (_) {}
 }
 
+function safeStorageGet(keys, callback) {
+  if (!isCtxValid()) return;
+  try {
+    chrome.storage.sync.get(keys, (res) => {
+      if (!isCtxValid() || chrome.runtime.lastError) return;
+      callback(res);
+    });
+  } catch (_) {}
+}
+
+function safeStorageSet(items, callback) {
+  if (!isCtxValid()) return;
+  try {
+    chrome.storage.local.set(items, () => {
+      if (!isCtxValid() || chrome.runtime.lastError) return;
+      if (callback) callback();
+    });
+  } catch (_) {}
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // PAGE DATA  (document ID, base URL, auth token)
 // ══════════════════════════════════════════════════════════════════════════════
-const _urlMatch  = window.location.href.match(/\/document\/d\/([^/]+)/);
+const _urlMatch = window.location.href.match(/\/document\/d\/([^/]+)/);
 const documentId = _urlMatch ? _urlMatch[1] : "";
 
 const _embedMeta = document.querySelector('meta[itemprop="embedURL"]');
 const _ogMeta    = document.querySelector('meta[property="og:url"]');
-const _sourceUrl = _embedMeta?.getAttribute("content")
-                || _ogMeta?.getAttribute("content")
-                || window.location.href;
+const _sourceUrl =
+  _embedMeta?.getAttribute("content") ||
+  _ogMeta?.getAttribute("content") ||
+  window.location.href;
 const _dIdx  = _sourceUrl.indexOf("/d/");
-const baseurl = _dIdx !== -1
-  ? _sourceUrl.substring(0, _dIdx + 3)
-  : "https://docs.google.com/document/d/";
+const baseurl =
+  _dIdx !== -1
+    ? _sourceUrl.substring(0, _dIdx + 3)
+    : "https://docs.google.com/document/d/";
 
 let documentToken = "";
 
@@ -46,7 +66,6 @@ function extractToken() {
   for (let i = 0; i < scripts.length; i++) {
     const txt = scripts[i].textContent;
     if (!txt) continue;
-
     if (txt.includes("_docs_flag_initialData")) {
       const m = txt.match(/_docs_flag_initialData=(.*?);/);
       if (m) {
@@ -69,7 +88,6 @@ function extractToken() {
         }
       }
     }
-    // Fallback
     if (!documentToken && txt.includes('"token":"')) {
       const tm = txt.match(/"token":"([^"]+)"/);
       if (tm?.[1]) { documentToken = tm[1]; return true; }
@@ -85,7 +103,59 @@ function tryExtractToken() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// BUTTON INJECTION  (toolbar loads async in Google Docs)
+// WRITING TIME  — MS Word style: real elapsed time while tab is active
+// ══════════════════════════════════════════════════════════════════════════════
+let _writingMs       = 0;   // total accumulated ms
+let _sessionStart    = null; // Date.now() when current active period began
+let _writingInterval = null;
+
+function _startWritingTimer() {
+  if (_sessionStart !== null) return; // already running
+  _sessionStart = Date.now();
+  _writingInterval = setInterval(_tickWritingTimer, 1000);
+}
+
+function _stopWritingTimer() {
+  if (_sessionStart === null) return;
+  _writingMs   += Date.now() - _sessionStart;
+  _sessionStart = null;
+  clearInterval(_writingInterval);
+  _writingInterval = null;
+}
+
+function _tickWritingTimer() {
+  // push a live update to the infobar every second
+  _broadcastWritingTime();
+}
+
+function _totalWritingMs() {
+  return _writingMs + (_sessionStart !== null ? Date.now() - _sessionStart : 0);
+}
+
+function _formatWritingTime(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h} hr ${m} min ${sec} sec`;
+  if (m > 0) return `${m} min ${sec} sec`;
+  return `${sec} sec`;
+}
+
+// Start timer when tab gains focus, stop when it loses it
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    _startWritingTimer();
+  } else {
+    _stopWritingTimer();
+  }
+});
+
+// Also start immediately if already visible
+if (document.visibilityState === "visible") _startWritingTimer();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BUTTON INJECTION
 // ══════════════════════════════════════════════════════════════════════════════
 let button = null;
 
@@ -104,9 +174,10 @@ function injectStylesheet() {
 
 function injectButton() {
   if (document.getElementById("scriptrailBtn")) return true;
-  const toolbar = document.querySelector(".docs-titlebar-buttons")
-               || document.querySelector(".docs-titlebar")
-               || document.querySelector("div[role='toolbar']");
+  const toolbar =
+    document.querySelector(".docs-titlebar-buttons") ||
+    document.querySelector(".docs-titlebar") ||
+    document.querySelector("div[role='toolbar']");
   if (!toolbar) return false;
 
   const wrapper = document.createElement("div");
@@ -138,21 +209,17 @@ function handleButtonClick() {
     chapters[id] = label ? label.textContent.trim() : "";
   });
 
-  // Store token & data in storage – no token in URL
-  chrome.storage.local.set({
-    [`report_${documentId}`]: {
-      token: documentToken,
-      baseurl: baseurl,
-      title: documentTitle,
-      tabs: chapters
-    }
-  }, () => {
-    // Only after storage is set, open the report tab
-    safeSend({
-      action: "openReportTab",
-      id: documentId
-    });
-  });
+  safeStorageSet(
+    {
+      [`report_${documentId}`]: {
+        token: documentToken,
+        baseurl,
+        title: documentTitle,
+        tabs: chapters,
+      },
+    },
+    () => { safeSend({ action: "openReportTab", id: documentId }); },
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -180,7 +247,11 @@ function fetchDataForInfobar() {
     })
     .catch((e) => {
       console.error("[Scriptrail] tiles:", e);
-      if (button) { button.textContent = "Report Unavailable"; button.title = "You need edit access."; button.disabled = true; }
+      if (button) {
+        button.textContent = "Report Unavailable";
+        button.title       = "You need edit access.";
+        button.disabled    = true;
+      }
     });
 }
 
@@ -193,20 +264,60 @@ async function fetchRevisionData(docId, token, totalRevs) {
 
 function generateEdits(changelog, edits) {
   changelog.forEach((entry) => {
-    let type; try { type = entry[0].ty; } catch (_) {}
+    let type;
+    try { type = entry[0].ty; } catch (_) {}
     if (type === "is" || type === "iss") {
-      edits.push({ ty:"is", text:entry[0].s, loc:entry[0].ibi, time:entry[1], userId:entry[2], tab:"first" });
+      edits.push({ ty: "is", text: entry[0].s, loc: entry[0].ibi, time: entry[1], userId: entry[2], tab: "first" });
     } else if (type === "ds" || type === "dss") {
-      edits.push({ ty:"ds", si:entry[0].si, ei:entry[0].ei, time:entry[1], userId:entry[2], tab:"first" });
+      edits.push({ ty: "ds", si: entry[0].si, ei: entry[0].ei, time: entry[1], userId: entry[2], tab: "first" });
     } else if (type === "mlti") {
       generateEdits(entry[0].mts.map((mt) => [mt, entry[1], entry[2]]), edits);
     } else if (type === "nm") {
-      const nmc = entry[0].nmc; const tab = entry[0].nmr[1];
-      if (nmc.ty === "is") edits.push({ ty:"is", text:nmc.s, loc:nmc.ibi, time:entry[1], userId:entry[2], tab });
-      else if (nmc.ty === "ds") edits.push({ ty:"ds", si:nmc.si, ei:nmc.ei, time:entry[1], userId:entry[2], tab });
+      const nmc = entry[0].nmc;
+      const tab = entry[0].nmr[1];
+      if (nmc.ty === "is")
+        edits.push({ ty: "is", text: nmc.s, loc: nmc.ibi, time: entry[1], userId: entry[2], tab });
+      else if (nmc.ty === "ds")
+        edits.push({ ty: "ds", si: nmc.si, ei: nmc.ei, time: entry[1], userId: entry[2], tab });
     }
   });
   return edits;
+}
+
+// ── Paste event: trigger immediate refresh ────────────────────────────────
+document.addEventListener("paste", () => {
+  if (isCtxValid() && documentToken) fetchDataForInfobar();
+});
+
+// ── Periodic refresh (real-time updates for copy detection etc.) ──────────
+function startPeriodicRefresh() {
+  if (!isCtxValid()) return;
+  const intervalId = setInterval(() => {
+    if (!isCtxValid()) {
+      clearInterval(intervalId);
+      const bar = document.getElementById("scriptrailInfoBar");
+      if (bar) {
+        bar.textContent  = "Scriptrail: connection lost – reloading page…";
+        bar.style.display = "block";
+      }
+      setTimeout(() => location.reload(), 1500);
+      return;
+    }
+    if (documentToken) fetchDataForInfobar();
+  }, 30000); // every 30s — infobar updates its own timer every second
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BROADCAST WRITING TIME to infobar every second
+// ══════════════════════════════════════════════════════════════════════════════
+function _broadcastWritingTime() {
+  if (!isCtxValid()) return;
+  try {
+    chrome.runtime.sendMessage({
+      type: "writingTimeTick",
+      writingTime: _formatWritingTime(_totalWritingMs()),
+    }, () => { if (chrome.runtime.lastError) {} });
+  } catch (_) {}
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -215,8 +326,8 @@ function generateEdits(changelog, edits) {
 function updateUIFromStorage() {
   if (!isCtxValid()) return;
   try {
-    chrome.storage.sync.get(["toggleState"], (res) => {
-      if (chrome.runtime.lastError) return;
+    safeStorageGet(["toggleState"], (res) => {
+      if (!isCtxValid()) return;
       const show = res?.toggleState !== false;
       if (button) button.style.display = show ? "inline-block" : "none";
     });
@@ -229,6 +340,7 @@ function setupListeners() {
     chrome.runtime.onMessage.addListener((msg) => {
       if (!isCtxValid()) return;
       if (msg?.type === "toggle") updateUIFromStorage();
+      // NOTE: sharedData is handled entirely in infoBar.js
     });
   } catch (_) {}
   try {
@@ -250,27 +362,23 @@ function init() {
   setupListeners();
   updateUIFromStorage();
 
-  try {
-  chrome.storage.sync.get(["toggleState"], (res) => {
-    if (chrome.runtime.lastError) return;
+  safeStorageGet(["toggleState"], (res) => {
+    if (!isCtxValid()) return;
     if (res?.toggleState !== false) {
-      // Poll for token extraction
       let polls = 0;
-      const MAX_POLLS = 30;
       function waitForToken() {
+        if (!isCtxValid()) return;
         polls++;
         if (documentToken) {
           fetchDataForInfobar();
+          startPeriodicRefresh();
           return;
         }
-        if (polls < MAX_POLLS) {
-          setTimeout(waitForToken, 200);
-        }
+        if (polls < 30) setTimeout(waitForToken, 200);
       }
       waitForToken();
     }
   });
-} catch (_) {}
 }
 
 init();

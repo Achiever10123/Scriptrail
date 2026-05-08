@@ -313,19 +313,18 @@ function renderSessionsSection(edits) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function detectCopiedText(edits, userId = "default") {
-  const TIMEOUT    = 7_000;
-  const MIN_LEN    = 50;
-  const started    = performance.now();
-  const showLinks  = document.getElementById("showLinksCheckbox")?.checked ?? true;
+  const TIMEOUT   = 7_000;
+  const MIN_LEN   = 20;                    // ← lowered from 50
+  const started   = performance.now();
+  const showLinks = document.getElementById("showLinksCheckbox")?.checked ?? true;
 
   const tabKeys   = [...new Set(edits.map((e) => e.tab))];
   let docStates   = tabKeys.map(() => "");
   const found     = [];
 
-  // Build candidates: large inserts, optionally filtered
   let candidates = edits
     .map((e, i) => ({ ...e, _idx: i }))
-    .filter((e) => e.ty === "is" && e.text && e.text.length > MIN_LEN);
+    .filter((e) => e.ty === "is" && e.text && e.text.length >= MIN_LEN);  // ← >= not >
 
   if (userId !== "default") candidates = candidates.filter((e) => e.userId === userId);
 
@@ -336,10 +335,9 @@ async function detectCopiedText(edits, userId = "default") {
     });
   }
 
-  let candPtr = 0; // index into candidates[]
+  let candPtr = 0;
 
   for (let i = 0; i < edits.length; i++) {
-    // Yield every 700 edits to avoid freezing the UI
     if (i % 700 === 0) {
       if (performance.now() - started > TIMEOUT) {
         _renderCopyCards(found, edits);
@@ -354,24 +352,22 @@ async function detectCopiedText(edits, userId = "default") {
     if (tIdx < 0) continue;
 
     if (edit.ty === "is" && edit.text) {
-      // ── Snapshot doc state BEFORE applying this insert ────────────
-      const docBefore = docStates[tIdx];
+      const docBefore   = docStates[tIdx];
+      docStates[tIdx]   = applyInsert(docStates[tIdx], edit.loc, edit.text);
 
-      // Apply the insert
-      docStates[tIdx] = applyInsert(docStates[tIdx], edit.loc, edit.text);
-
-      // ── Check: is this the next candidate? ──────────────────────
       if (candPtr < candidates.length && i === candidates[candPtr]._idx) {
-        // If text was NOT already in the doc just before this insert,
-        // it wasn't built up by typing → it's an external paste
-        if (!docBefore.includes(edit.text)) {
-          found.push(edit);  // push the original edit (includes time, user, etc.)
+        // Normalise whitespace so minor formatting differences don't cause
+        // text that was actually typed character-by-character to look like a paste.
+        const normBefore = docBefore.replace(/\s+/g, " ");
+        const normText   = edit.text.replace(/\s+/g, " ").trim();
+
+        if (normText.length >= MIN_LEN && !normBefore.includes(normText)) {
+          found.push(edit);
         }
         candPtr++;
       }
 
     } else if (edit.ty === "ds") {
-      // We still apply the deletion; no candidate checking needed
       docStates[tIdx] = applyDelete(docStates[tIdx], edit.si, edit.ei);
     }
   }
@@ -379,6 +375,7 @@ async function detectCopiedText(edits, userId = "default") {
   _renderCopyCards(found, edits);
   document.getElementById("copyCount").textContent = ` (${found.length})`;
 }
+
 
 function _renderCopyCards(items, allEdits) {
   const container  = document.getElementById("copyCardContainer");
