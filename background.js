@@ -7,38 +7,15 @@
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
-  // ── 1. Open Report Tab ──────────────────────────────────────────────────────
-  if (message.action === "openReportTab") {
-    const params = new URLSearchParams({
-      id:       message.id,
-      token:    message.token,
-      title:    message.title,
-      baseurl:  message.baseurl
-    });
+ // ── 1. Open Report Tab ──────────────────────────────────────────────────────
+if (message.action === "openReportTab") {
+  const params = new URLSearchParams({
+    id: message.id
+  });
 
-    const url = chrome.runtime.getURL("report.html") + "?" + params.toString();
-
-    chrome.tabs.create({ url }, (tab) => {
-      const tabId = tab.id;
-
-      // Wait until the tab is fully loaded before sending chapter data
-      const waitForLoad = () => {
-        chrome.tabs.get(tabId, (updatedTab) => {
-          if (chrome.runtime.lastError) return;
-          if (updatedTab.status === "complete") {
-            chrome.tabs.sendMessage(tabId, {
-              action: "init",
-              tabs: message.tabs
-            });
-          } else {
-            setTimeout(waitForLoad, 100);
-          }
-        });
-      };
-
-      waitForLoad();
-    });
-  }
+  const url = chrome.runtime.getURL("report.html") + "?" + params.toString();
+  chrome.tabs.create({ url });
+}
 
   // ── 2. Toggle Button Visibility on All Docs Tabs ────────────────────────────
   if (message.action === "toggleUpdate") {

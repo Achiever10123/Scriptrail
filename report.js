@@ -325,7 +325,7 @@ async function detectCopiedText(edits, userId = "default") {
   // Build candidates: large inserts, optionally filtered
   let candidates = edits
     .map((e, i) => ({ ...e, _idx: i }))
-    .filter((e) => e.ty === "is" && e.text.length > MIN_LEN);
+    .filter((e) => e.ty === "is" && e.text && e.text.length > MIN_LEN);
 
   if (userId !== "default") candidates = candidates.filter((e) => e.userId === userId);
 
@@ -336,7 +336,10 @@ async function detectCopiedText(edits, userId = "default") {
     });
   }
 
+  let candPtr = 0; // index into candidates[]
+
   for (let i = 0; i < edits.length; i++) {
+    // Yield every 700 edits to avoid freezing the UI
     if (i % 700 === 0) {
       if (performance.now() - started > TIMEOUT) {
         _renderCopyCards(found, edits);
@@ -347,29 +350,29 @@ async function detectCopiedText(edits, userId = "default") {
     }
 
     const edit = edits[i];
-    const tIdx = tabKeys.indexOf(edit.tab);
+    const tIdx = tabKeys.indexOf(edit.tab || "first");
+    if (tIdx < 0) continue;
 
-    if (edit.ty === "is") {
+    if (edit.ty === "is" && edit.text) {
+      // ── Snapshot doc state BEFORE applying this insert ────────────
+      const docBefore = docStates[tIdx];
+
+      // Apply the insert
       docStates[tIdx] = applyInsert(docStates[tIdx], edit.loc, edit.text);
-    } else if (edit.ty === "ds") {
-      const deleted = docStates[tIdx].slice(edit.si - 1, edit.ei);
-      docStates[tIdx] = applyDelete(docStates[tIdx], edit.si, edit.ei);
-      if (deleted.length >= MIN_LEN) {
-        for (let c = 0; c < candidates.length; c++) {
-          if (candidates[c].text === deleted) { candidates.splice(c, 1); break; }
-        }
-      }
-    }
 
-    if (candidates.length > 0) {
-      const next = candidates[0];
-      if (i === next._idx - 1 || next._idx === 0) {
-        const full = docStates.join("");
-        if (!full.includes(next.text) || next._idx === 0) {
-          found.push(next);
+      // ── Check: is this the next candidate? ──────────────────────
+      if (candPtr < candidates.length && i === candidates[candPtr]._idx) {
+        // If text was NOT already in the doc just before this insert,
+        // it wasn't built up by typing → it's an external paste
+        if (!docBefore.includes(edit.text)) {
+          found.push(edit);  // push the original edit (includes time, user, etc.)
         }
-        candidates.shift();
+        candPtr++;
       }
+
+    } else if (edit.ty === "ds") {
+      // We still apply the deletion; no candidate checking needed
+      docStates[tIdx] = applyDelete(docStates[tIdx], edit.si, edit.ei);
     }
   }
 
@@ -886,11 +889,29 @@ function cleanUserMap(edits, rawUserMap) {
 document.addEventListener("DOMContentLoaded", async () => {
   Chart.defaults.font.size = 13;
 
-  const params  = new URLSearchParams(window.location.search);
-  const docId   = params.get("id");
-  const token   = params.get("token");
-  const title   = params.get("title");
-  const baseurl = params.get("baseurl");
+  const params = new URLSearchParams(window.location.search);
+  const docId = params.get("id");
+
+  // 1. Read saved report data (token, baseurl, title, tabs)
+  const storageKey = `report_${docId}`;
+  const stored = await chrome.storage.local.get(storageKey);
+  const reportData = stored[storageKey];
+
+  if (!reportData) {
+    document.getElementById("loadingMessage").textContent =
+      "Report data not found. Please reopen the report from the document.";
+    return;
+  }
+
+  // Remove from storage (single‑use)
+  chrome.storage.local.remove(storageKey);
+
+  const token   = reportData.token;
+  const baseurl = reportData.baseurl;
+  const title   = reportData.title;
+  tabsData      = reportData.tabs || {};
+  // (Save tabsData to localStorage for future reloads if needed)
+  try { localStorage.setItem("srTabsData", JSON.stringify(tabsData)); } catch (_) {}
 
   document.getElementById("docTitle").textContent = title || "Untitled Document";
 
@@ -991,17 +1012,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   overlay.style.display = "none";
 });
 
-// ── Receive tab chapter data from background.js
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.action === "init") {
-    tabsData = msg.tabs || {};
-    try {
-      localStorage.setItem("srTabsData", JSON.stringify(tabsData));
-    } catch (_) {}
-    // Rebuild tabs panel now that labels are available
-    if (globalEdits.length > 0) buildTabsPanel(globalEdits, true);
-  }
-});
 
 // Restore tabsData from localStorage (if page was refreshed)
 try {

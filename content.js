@@ -137,10 +137,21 @@ function handleButtonClick() {
     const label = el.querySelector(".chapter-label-content");
     chapters[id] = label ? label.textContent.trim() : "";
   });
-  safeSend({
-    action: "openReportTab",
-    id:     documentId, token: documentToken,
-    baseurl, title: documentTitle, tabs: chapters
+
+  // Store token & data in storage – no token in URL
+  chrome.storage.local.set({
+    [`report_${documentId}`]: {
+      token: documentToken,
+      baseurl: baseurl,
+      title: documentTitle,
+      tabs: chapters
+    }
+  }, () => {
+    // Only after storage is set, open the report tab
+    safeSend({
+      action: "openReportTab",
+      id: documentId
+    });
   });
 }
 
@@ -240,21 +251,26 @@ function init() {
   updateUIFromStorage();
 
   try {
-    chrome.storage.sync.get(["toggleState"], (res) => {
-      if (chrome.runtime.lastError) return;
-      if (res?.toggleState !== false) {
-        // Give token extraction time to finish
-        setTimeout(() => {
-          if (documentId && documentToken) {
-            fetchDataForInfobar();
-          } else {
-            // One more retry
-            setTimeout(() => { if (documentId && documentToken) fetchDataForInfobar(); }, 1500);
-          }
-        }, 600);
+  chrome.storage.sync.get(["toggleState"], (res) => {
+    if (chrome.runtime.lastError) return;
+    if (res?.toggleState !== false) {
+      // Poll for token extraction
+      let polls = 0;
+      const MAX_POLLS = 30;
+      function waitForToken() {
+        polls++;
+        if (documentToken) {
+          fetchDataForInfobar();
+          return;
+        }
+        if (polls < MAX_POLLS) {
+          setTimeout(waitForToken, 200);
+        }
       }
-    });
-  } catch (_) {}
+      waitForToken();
+    }
+  });
+} catch (_) {}
 }
 
 init();

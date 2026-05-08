@@ -16,7 +16,7 @@
     {
       "js": ["content.js", "infoBar.js"],
       "matches": ["https://docs.google.com/document/*"],
-      "all_frames": true,
+      "all_frames": false,
       "match_about_blank": true,
       "run_at": "document_end"
     }
