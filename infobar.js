@@ -2,6 +2,52 @@
 // Shows a thin stats bar: Writing Time | Copied Passages | Sessions
 
 // ══════════════════════════════════════════════════════════════════════════════
+// CONFIGURATION
+// ══════════════════════════════════════════════════════════════════════════════
+const INFOBAR_CONFIG = {
+  width: 280, // Panel width in pixels (change this to adjust)
+};
+
+function setInfoBarWidth(pixels) {
+  INFOBAR_CONFIG.width = pixels;
+  const root = document.documentElement;
+  root.style.setProperty("--scriptrail-panel-width", `${pixels}px`);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DOCUMENT ID & STORAGE
+// ══════════════════════════════════════════════════════════════════════════════
+const _docIdMatch = window.location.href.match(/\/document\/d\/([^/]+)/);
+const _documentId = _docIdMatch ? _docIdMatch[1] : "";
+const _storageKey = `scriptrail_writingTime_${_documentId}`;
+
+function _saveAccumulatedTime() {
+  if (!_ctxOk() || !_documentId) return;
+  const currentMs = _getLiveWritingTimeMs();
+  try {
+    chrome.storage.local.set({ [_storageKey]: currentMs });
+  } catch (_) {}
+}
+
+function _loadSavedTime() {
+  if (!_ctxOk() || !_documentId) return;
+  try {
+    chrome.storage.local.get([_storageKey], (res) => {
+      if (!_ctxOk()) return;
+      const saved = res[_storageKey];
+      if (saved && typeof saved === "number" && saved > _baseWritingTimeMs) {
+        _baseWritingTimeMs = saved;
+        _lastFetchTime = Date.now();
+        console.log(
+          "[Scriptrail infoBar] Restored saved time:",
+          formatWritingTime(saved),
+        );
+      }
+    });
+  } catch (_) {}
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // CONTEXT GUARD
 // ══════════════════════════════════════════════════════════════════════════════
 function _ctxOk() {
@@ -30,53 +76,87 @@ let _lastSessionCount = 0;
 // exactly what report.js would show if it recalculated right now.
 const _IB_SESSION_GAP = 600_000; // 10 min — must match report.js SESSION_GAP
 let _baseWritingTimeMs = 0;
-let _lastFetchTime = 0;  // wall-clock time of the last API refresh
+let _lastFetchTime = 0; // wall-clock time of the last API refresh
 let _liveTickInterval = null;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // INFO BAR DOM
 // ══════════════════════════════════════════════════════════════════════════════
 function createInfoBar() {
-  const docsBar = document.getElementById("docs-bars");
-  if (!docsBar || document.getElementById("scriptrailInfoBar")) return;
+  if (document.getElementById("scriptrailInfoBar")) return;
+
+  // Initialize CSS custom property with configured width
+  document.documentElement.style.setProperty(
+    "--scriptrail-panel-width",
+    `${INFOBAR_CONFIG.width}px`,
+  );
 
   const style = document.createElement("style");
   style.textContent = `
     #scriptrailInfoBar {
-      display: block;
-      text-align: center;
-      font-size: 13px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: var(--scriptrail-panel-width, 280px);
+      height: 100vh;
       background-color: #f0f9f0;
-      padding: 7px 40px 7px 12px;
-      border-bottom: 1px solid #c8e6c9;
-      position: relative;
+      border-left: 1px solid #c8e6c9;
+      padding: 16px;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #2d6a2d;
+      z-index: 10000;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    #scriptrailInfoBar .sr-section { 
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 12px;
+      background: white;
+      border: 1px solid #c8e6c9;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    #scriptrailInfoBar .sr-section-label {
+      font-weight: 600;
+      color: #1b5e20;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    #scriptrailInfoBar .sr-section-value {
+      font-size: 16px;
+      font-weight: 700;
       color: #2d6a2d;
     }
-    #scriptrailInfoBar .sr-section { display: inline-block; margin: 0 8px; }
-    #scriptrailInfoBar .sr-divider { color: #a5d6a7; margin: 0 4px; }
+    #scriptrailInfoBar .sr-divider { display: none; }
     #scriptrailInfoBarClose {
-      position: absolute; right: 10px; top: 50%;
-      transform: translateY(-50%);
-      background: none; border: none; font-size: 15px;
-      cursor: pointer; color: #66bb6a; padding: 2px 6px; border-radius: 3px;
+      position: absolute; right: 12px; top: 12px;
+      background: none; border: none; font-size: 18px;
+      cursor: pointer; color: #66bb6a; padding: 4px 8px; border-radius: 4px;
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
     }
-    #scriptrailInfoBarClose:hover { color: #2d6a2d; background: rgba(0,0,0,0.06); }
+    #scriptrailInfoBarClose:hover { color: #2d6a2d; background: rgba(0,0,0,0.08); }
     #scriptrailToggleIcon {
-      display: inline-flex; align-items: center;
+      display: flex; align-items: center; justify-content: center;
       background: #f0f9f0; border: 1px solid #a5d6a7;
-      border-radius: 4px; padding: 3px 8px; font-size: 11px;
-      cursor: pointer; color: #2d6a2d; margin-left: 6px;
+      border-radius: 4px; padding: 6px 12px; font-size: 12px;
+      cursor: pointer; color: #2d6a2d; 
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-weight: 500;
     }
     #scriptrailToggleIcon:hover { background: #e0f5e0; }
   `;
   document.head.appendChild(style);
 
-  const bar = document.createElement("div");
-  bar.id = "scriptrailInfoBar";
-  bar.textContent = "Scriptrail: loading…";
-  docsBar.appendChild(bar);
+  const panel = document.createElement("div");
+  panel.id = "scriptrailInfoBar";
+  panel.textContent = "Scriptrail: loading…";
+  document.body.appendChild(panel);
 
   _createToggleIcon();
 }
@@ -129,12 +209,21 @@ function updateInfoBar(writingTime, copiedCount, sessionCount) {
 
 function _renderBarContent(bar, writingTime, copiedCount, sessionCount) {
   bar.innerHTML = `
-    <span class="sr-section">✍️ Writing Time: <strong>${writingTime}</strong></span>
-    <span class="sr-divider">|</span>
-    <span class="sr-section">📋 Copied Passages: <strong>${copiedCount}</strong></span>
-    <span class="sr-divider">|</span>
-    <span class="sr-section">🕐 Sessions: <strong>${sessionCount}</strong></span>
     <button id="scriptrailInfoBarClose" title="Close">×</button>
+    <div style="margin-top: 24px;">
+      <div class="sr-section">
+        <div class="sr-section-label">✍️ Writing Time</div>
+        <div class="sr-section-value">${writingTime}</div>
+      </div>
+      <div class="sr-section">
+        <div class="sr-section-label">📋 Copied Passages</div>
+        <div class="sr-section-value">${copiedCount}</div>
+      </div>
+      <div class="sr-section">
+        <div class="sr-section-label">🕐 Sessions</div>
+        <div class="sr-section-value">${sessionCount}</div>
+      </div>
+    </div>
   `;
   document
     .getElementById("scriptrailInfoBarClose")
@@ -145,8 +234,8 @@ function _renderBarContent(bar, writingTime, copiedCount, sessionCount) {
 function _updateWritingTimeOnly(writingTime) {
   const bar = document.getElementById("scriptrailInfoBar");
   if (!bar || _barDismissed) return;
-  const span = bar.querySelector(".sr-section strong");
-  if (span) span.textContent = writingTime;
+  const valueSpan = bar.querySelector(".sr-section-value");
+  if (valueSpan) valueSpan.textContent = writingTime;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -163,16 +252,21 @@ function _getLiveWritingTimeMs() {
 
   // Keep ticking as long as the API keeps sending fresh data (every 5s).
   // If we stop receiving data (tab backgrounded, idle > SESSION_GAP), freeze.
-  }
-
   if (elapsedSinceLastFetch < _IB_SESSION_GAP) {
+    return _baseWritingTimeMs + elapsedSinceLastFetch;
+  }
   return _baseWritingTimeMs;
 }
 
 function _startLiveTick() {
   if (_liveTickInterval) return;
+  let saveCounter = 0;
   _liveTickInterval = setInterval(() => {
     _updateWritingTimeOnly(formatWritingTime(_getLiveWritingTimeMs()));
+    // Save accumulated time every 10 seconds
+    if (++saveCounter % 10 === 0) {
+      _saveAccumulatedTime();
+    }
   }, 1000);
 }
 
@@ -322,18 +416,23 @@ function setupInfoBarListener() {
     chrome.runtime.onMessage.addListener(async (msg) => {
       if (!_ctxOk()) return;
 
+      console.log("[Scriptrail infoBar] Message received:", msg?.type);
+
       // writingTimeTick is still sent by content.js every second but we no
       // longer use it — the live tick interval does the job from revision data.
       if (msg?.type === "writingTimeTick") return;
 
       // ── Full data refresh from revision API ───────────────────────────────
-      if (msg?.type !== "sharedData" && msg?.action !== "refreshData") return;
+      if (msg?.type !== "sharedData") return;
 
       const edits = msg?.payload?.edits;
       if (!Array.isArray(edits) || edits.length === 0) {
         console.warn("[Scriptrail infoBar] No edits received");
         return;
       }
+
+      // Try to restore previously accumulated time before processing new data
+      _loadSavedTime();
 
       if (!_barDismissed) {
         createInfoBar();
@@ -344,22 +443,65 @@ function setupInfoBarListener() {
         }
       }
 
-      const sessionCount = getWritingSessionCount(edits);
-      const copiedCount  = await getCopiedCount(edits);
-      const writingTimeMs = getWritingTimeFromEdits(edits);
+      try {
+        const sessionCount = getWritingSessionCount(edits);
+        const writingTimeMs = getWritingTimeFromEdits(edits);
 
-      if (!_ctxOk()) return;
+        // CRITICAL: Only update _baseWritingTimeMs if it represents a NEW/LATER time
+        // than what the live tick would currently show. This prevents the display from
+        // reverting to old values when fresh data arrives with a stale last-edit timestamp.
+        const currentLiveMs = _getLiveWritingTimeMs();
+        if (writingTimeMs > currentLiveMs) {
+          _baseWritingTimeMs = writingTimeMs;
+          _lastFetchTime = Date.now();
+          console.log(
+            "[Scriptrail infoBar] Updated base time:",
+            formatWritingTime(writingTimeMs),
+            "→ live:",
+            formatWritingTime(_getLiveWritingTimeMs()),
+          );
+        } else {
+          // Data is stale; do NOT reset _lastFetchTime or it will revert the timer.
+          // Just continue with the live tick as-is.
+          console.log(
+            "[Scriptrail infoBar] Stale data (calc:",
+            formatWritingTime(writingTimeMs),
+            "vs live:",
+            formatWritingTime(currentLiveMs),
+            "), keeping live tick",
+          );
+        }
 
-      // Store base time and last-edit timestamp for the live tick to extend
-      _baseWritingTimeMs = writingTimeMs;
-      _lastFetchTime = Date.now(); // wall-clock time of this refresh
+        // Get copied count with timeout protection
+        let copiedCount = "N/A";
+        try {
+          copiedCount = await Promise.race([
+            getCopiedCount(edits),
+            new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error("getCopiedCount timeout")),
+                4500,
+              ),
+            ),
+          ]);
+        } catch (err) {
+          console.warn("[Scriptrail infoBar] getCopiedCount error:", err);
+          copiedCount = "N/A";
+        }
 
-      // Display current live value (already extends the open session if active)
-      const writingTimeFormatted = formatWritingTime(_getLiveWritingTimeMs());
-      updateInfoBar(writingTimeFormatted, copiedCount, sessionCount);
+        if (!_ctxOk()) return;
 
-      // Start the 1-second tick if not already running
-      _startLiveTick();
+        // Display current live value (already extends the open session if active)
+        const writingTimeFormatted = formatWritingTime(_getLiveWritingTimeMs());
+        updateInfoBar(writingTimeFormatted, copiedCount, sessionCount);
+
+        // Start the 1-second tick if not already running
+        _startLiveTick();
+      } catch (err) {
+        console.error("[Scriptrail infoBar] Error processing data:", err);
+        // Fallback: show at least the bar with placeholder values
+        updateInfoBar("0 sec", "N/A", "0");
+      }
     });
   } catch (err) {
     console.error("[Scriptrail infoBar] Listener setup failed:", err);
@@ -371,4 +513,5 @@ setupInfoBarListener();
 // Show the bar immediately on load so the user sees "loading…"
 // _maybeShowBar() will keep it visible once data arrives.
 createInfoBar();
+_loadSavedTime();
 _maybeShowBar();

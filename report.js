@@ -6,11 +6,11 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // 0.  GLOBALS
 // ══════════════════════════════════════════════════════════════════════════════
-let globalEdits   = [];   // all parsed edits for the document
-let globalUsers   = {};   // { userId: { name, color } }
-let globalTabs    = [];   // ordered list of tab keys found in edits
-let tabsData      = {};   // { tabKey: "Tab label" } — from localStorage
-let firstContent  = "";   // document content at revision 1
+let globalEdits = []; // all parsed edits for the document
+let globalUsers = {}; // { userId: { name, color } }
+let globalTabs = []; // ordered list of tab keys found in edits
+let tabsData = {}; // { tabKey: "Tab label" } — from localStorage
+let firstContent = ""; // document content at revision 1
 
 // Chart instances (kept so we can destroy before redrawing)
 let chartDate, chartTime, chartTimePerDay, chartGroupPie;
@@ -19,7 +19,7 @@ let chartDate, chartTime, chartTimePerDay, chartGroupPie;
 let _sessions = [];
 
 const SESSIONS_PREVIEW = 3;
-const COPY_PREVIEW     = 3;
+const COPY_PREVIEW = 3;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 1.  UTILITIES
@@ -34,8 +34,12 @@ function applyDelete(str, si, ei) {
 
 function formatDate(ms) {
   return new Date(ms).toLocaleString("en-US", {
-    month: "2-digit", day: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", second: "2-digit"
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   });
 }
 
@@ -51,10 +55,10 @@ function lightenColor(hex, pct = 70) {
   let r = parseInt(hex.slice(0, 2), 16);
   let g = parseInt(hex.slice(2, 4), 16);
   let b = parseInt(hex.slice(4, 6), 16);
-  r = Math.round(Math.min(255, r + (255 - r) * pct / 100));
-  g = Math.round(Math.min(255, g + (255 - g) * pct / 100));
-  b = Math.round(Math.min(255, b + (255 - b) * pct / 100));
-  return `#${r.toString(16).padStart(2,"0")}${g.toString(16).padStart(2,"0")}${b.toString(16).padStart(2,"0")}`;
+  r = Math.round(Math.min(255, r + ((255 - r) * pct) / 100));
+  g = Math.round(Math.min(255, g + ((255 - g) * pct) / 100));
+  b = Math.round(Math.min(255, b + ((255 - b) * pct) / 100));
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -63,7 +67,7 @@ function lightenColor(hex, pct = 70) {
 
 async function fetchTileData(docId, token, baseurl) {
   const url = `${baseurl}${docId}/revisions/tiles?id=${docId}&start=1&showDetailedRevisions=false&token=${token}`;
-  const res  = await fetch(url);
+  const res = await fetch(url);
   if (!res.ok) throw new Error("tiles fetch failed");
   const text = await res.text();
   return JSON.parse(text.slice(")]}'".length));
@@ -74,7 +78,7 @@ async function fetchChangelog(docId, token, baseurl, totalRevs) {
   if (loadingMsg) loadingMsg.textContent = "Loading revision history…";
 
   const url = `${baseurl}${docId}/revisions/load?id=${docId}&start=1&end=${totalRevs}`;
-  const res  = await fetch(url);
+  const res = await fetch(url);
   if (!res.ok) throw new Error("changelog fetch failed");
   const text = await res.text();
   return JSON.parse(text.slice(")]}'".length));
@@ -82,7 +86,7 @@ async function fetchChangelog(docId, token, baseurl, totalRevs) {
 
 async function fetchFirstContent(docId, token, baseurl) {
   const url = `${baseurl}${docId}/showrevision?start=1&end=1&id=${docId}&token=${token}`;
-  const res  = await fetch(url);
+  const res = await fetch(url);
   if (!res.ok) throw new Error("first revision fetch failed");
   const text = await res.text();
   const json = JSON.parse(text.slice(")]}'".length));
@@ -102,25 +106,52 @@ async function fetchFirstContent(docId, token, baseurl) {
 function generateEdits(changelog, edits = []) {
   changelog.forEach((entry) => {
     let type;
-    try { type = entry[0].ty; } catch (_) {}
+    try {
+      type = entry[0].ty;
+    } catch (_) {}
 
     if (type === "is" || type === "iss") {
-      edits.push({ ty: "is", text: entry[0].s, loc: entry[0].ibi, time: entry[1], userId: entry[2], tab: "first" });
-
+      edits.push({
+        ty: "is",
+        text: entry[0].s,
+        loc: entry[0].ibi,
+        time: entry[1],
+        userId: entry[2],
+        tab: "first",
+      });
     } else if (type === "ds" || type === "dss") {
-      edits.push({ ty: "ds", si: entry[0].si, ei: entry[0].ei, time: entry[1], userId: entry[2], tab: "first" });
-
+      edits.push({
+        ty: "ds",
+        si: entry[0].si,
+        ei: entry[0].ei,
+        time: entry[1],
+        userId: entry[2],
+        tab: "first",
+      });
     } else if (type === "mlti") {
       const expanded = entry[0].mts.map((mt) => [mt, entry[1], entry[2]]);
       generateEdits(expanded, edits);
-
     } else if (type === "nm") {
       const nmc = entry[0].nmc;
       const tab = entry[0].nmr[1];
       if (nmc.ty === "is") {
-        edits.push({ ty: "is", text: nmc.s, loc: nmc.ibi, time: entry[1], userId: entry[2], tab });
+        edits.push({
+          ty: "is",
+          text: nmc.s,
+          loc: nmc.ibi,
+          time: entry[1],
+          userId: entry[2],
+          tab,
+        });
       } else if (nmc.ty === "ds") {
-        edits.push({ ty: "ds", si: nmc.si, ei: nmc.ei, time: entry[1], userId: entry[2], tab });
+        edits.push({
+          ty: "ds",
+          si: nmc.si,
+          ei: nmc.ei,
+          time: entry[1],
+          userId: entry[2],
+          tab,
+        });
       }
     }
   });
@@ -159,7 +190,7 @@ function buildTabsPanel(edits, redraw = true) {
 
   tabKeys.forEach((key, i) => {
     const div = document.createElement("div");
-    div.id        = key;
+    div.id = key;
     div.className = "tab-item" + (i === 0 ? " active" : "");
 
     let label = "Deleted Tab";
@@ -179,7 +210,9 @@ function buildTabsPanel(edits, redraw = true) {
 }
 
 function setActiveTab(key, edits) {
-  document.querySelectorAll(".tab-item").forEach((el) => el.classList.remove("active"));
+  document
+    .querySelectorAll(".tab-item")
+    .forEach((el) => el.classList.remove("active"));
   const el = document.getElementById(key);
   if (el) el.classList.add("active");
   resetReplaySlider();
@@ -197,20 +230,25 @@ function resetReplaySlider() {
 // 6.  DOCUMENT STATS
 // ══════════════════════════════════════════════════════════════════════════════
 
-function renderDocStats(edits) {
-  let text    = "";
+function renderDocStats(edits, savedTimeMs = 0) {
+  let text = "";
   let deletes = 0;
 
   edits.forEach((e) => {
     if (e.ty === "is") text = applyInsert(text, e.loc, e.text);
-    else if (e.ty === "ds") { text = applyDelete(text, e.si, e.ei); deletes++; }
+    else if (e.ty === "ds") {
+      text = applyDelete(text, e.si, e.ei);
+      deletes++;
+    }
   });
 
-  const wordCount  = text.trim().split(/\s+/).filter(Boolean).length;
-  const timeMs     = calcTotalWritingTime(edits);
-  const totalMins  = Math.floor(timeMs / 60_000);
+  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+  const calculatedTimeMs = calcTotalWritingTime(edits);
+  // Use saved time if it's greater (infobar has live-ticked it forward)
+  const timeMs = Math.max(calculatedTimeMs, savedTimeMs);
+  const totalMins = Math.floor(timeMs / 60_000);
 
-  document.getElementById("statWords").textContent   = `Word Count: ${wordCount}`;
+  document.getElementById("statWords").textContent = `Word Count: ${wordCount}`;
   document.getElementById("statDeletes").textContent = `Deletes: ${deletes}`;
   document.getElementById("statTime").innerHTML =
     `<span class="tooltip-wrap" style="cursor:default">Time Spent<span class="tooltip-text">Active typing time; gaps > 10 min end a session.</span></span>: ${Math.floor(totalMins / 60)} hr ${totalMins % 60} min`;
@@ -226,30 +264,33 @@ const SESSION_GAP = 600_000; // 10 minutes
 function calcSessions(edits) {
   if (!edits || edits.length === 0) return [];
   const sessions = [];
-  let start      = edits[0].time;
-  let revCount   = 0;
+  let sessionStart = edits[0].time;
+  let revCount = 1; // Start with the first edit
 
   for (let i = 0; i < edits.length - 1; i++) {
-    revCount++;
     const gap = edits[i + 1].time - edits[i].time;
-    if (gap > SESSION_GAP || i === edits.length - 2) {
+    if (gap > SESSION_GAP) {
+      // Session ends at current edit, start new session at next
       sessions.push({
-        startTime: new Date(start),
-        endTime:   new Date(edits[i].time),
-        duration:  edits[i].time - start,
-        revisions: revCount
+        startTime: new Date(sessionStart),
+        endTime: new Date(edits[i].time),
+        duration: edits[i].time - sessionStart,
+        revisions: revCount,
       });
-      start    = edits[i + 1].time;
-      revCount = 0;
+      sessionStart = edits[i + 1].time;
+      revCount = 1; // Reset for new session
+    } else {
+      revCount++;
     }
   }
 
-  if (sessions.length === 0 && edits.length > 0) {
+  // Always add the final session
+  if (edits.length > 0) {
     sessions.push({
-      startTime: new Date(edits[0].time),
-      endTime:   new Date(edits[edits.length - 1].time),
-      duration:  edits[edits.length - 1].time - edits[0].time,
-      revisions: edits.length
+      startTime: new Date(sessionStart),
+      endTime: new Date(edits[edits.length - 1].time),
+      duration: edits[edits.length - 1].time - sessionStart,
+      revisions: revCount,
     });
   }
 
@@ -265,19 +306,19 @@ function renderSessionsSection(edits) {
   const count = _sessions.length;
 
   document.getElementById("sessionCount").textContent = `(${count})`;
-  document.getElementById("sessionCards").innerHTML    = "";
+  document.getElementById("sessionCards").innerHTML = "";
 
-  const seeAllBtn  = document.getElementById("showAllSessionsBtn");
-  const hideBtn    = document.getElementById("hideSessionsBtn");
+  const seeAllBtn = document.getElementById("showAllSessionsBtn");
+  const hideBtn = document.getElementById("hideSessionsBtn");
 
   function showSessions(from, to) {
     const container = document.getElementById("sessionCards");
     container.innerHTML = "";
     for (let i = from; i < to; i++) {
-      const s   = _sessions[i];
+      const s = _sessions[i];
       const div = document.createElement("div");
-      div.className   = "session-card";
-      div.innerHTML   = `
+      div.className = "session-card";
+      div.innerHTML = `
         <p><span class="label">Start:</span> ${formatDate(s.startTime)}</p>
         <p><span class="label">Duration:</span> ${formatDuration(s.duration)}</p>
         <p><span class="label">Edits:</span> ${s.revisions}</p>
@@ -288,23 +329,23 @@ function renderSessionsSection(edits) {
 
   if (count > SESSIONS_PREVIEW) {
     showSessions(0, SESSIONS_PREVIEW);
-    seeAllBtn.style.display  = "inline-block";
-    hideBtn.style.display    = "none";
+    seeAllBtn.style.display = "inline-block";
+    hideBtn.style.display = "none";
   } else {
     showSessions(0, count);
-    seeAllBtn.style.display  = "none";
-    hideBtn.style.display    = "none";
+    seeAllBtn.style.display = "none";
+    hideBtn.style.display = "none";
   }
 
   seeAllBtn.onclick = () => {
     showSessions(0, count);
     seeAllBtn.style.display = "none";
-    hideBtn.style.display   = "inline-block";
+    hideBtn.style.display = "inline-block";
   };
   hideBtn.onclick = () => {
     showSessions(0, SESSIONS_PREVIEW);
     seeAllBtn.style.display = "inline-block";
-    hideBtn.style.display   = "none";
+    hideBtn.style.display = "none";
   };
 }
 
@@ -313,20 +354,22 @@ function renderSessionsSection(edits) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function detectCopiedText(edits, userId = "default") {
-  const TIMEOUT   = 7_000;
-  const MIN_LEN   = 20;                    // ← lowered from 50
-  const started   = performance.now();
-  const showLinks = document.getElementById("showLinksCheckbox")?.checked ?? true;
+  const TIMEOUT = 7_000;
+  const MIN_LEN = 20; // ← lowered from 50
+  const started = performance.now();
+  const showLinks =
+    document.getElementById("showLinksCheckbox")?.checked ?? true;
 
-  const tabKeys   = [...new Set(edits.map((e) => e.tab))];
-  let docStates   = tabKeys.map(() => "");
-  const found     = [];
+  const tabKeys = [...new Set(edits.map((e) => e.tab))];
+  let docStates = tabKeys.map(() => "");
+  const found = [];
 
   let candidates = edits
     .map((e, i) => ({ ...e, _idx: i }))
-    .filter((e) => e.ty === "is" && e.text && e.text.length >= MIN_LEN);  // ← >= not >
+    .filter((e) => e.ty === "is" && e.text && e.text.length >= MIN_LEN); // ← >= not >
 
-  if (userId !== "default") candidates = candidates.filter((e) => e.userId === userId);
+  if (userId !== "default")
+    candidates = candidates.filter((e) => e.userId === userId);
 
   if (!showLinks) {
     candidates = candidates.filter((e) => {
@@ -352,21 +395,20 @@ async function detectCopiedText(edits, userId = "default") {
     if (tIdx < 0) continue;
 
     if (edit.ty === "is" && edit.text) {
-      const docBefore   = docStates[tIdx];
-      docStates[tIdx]   = applyInsert(docStates[tIdx], edit.loc, edit.text);
+      const docBefore = docStates[tIdx];
+      docStates[tIdx] = applyInsert(docStates[tIdx], edit.loc, edit.text);
 
       if (candPtr < candidates.length && i === candidates[candPtr]._idx) {
         // Normalise whitespace so minor formatting differences don't cause
         // text that was actually typed character-by-character to look like a paste.
         const normBefore = docBefore.replace(/\s+/g, " ");
-        const normText   = edit.text.replace(/\s+/g, " ").trim();
+        const normText = edit.text.replace(/\s+/g, " ").trim();
 
         if (normText.length >= MIN_LEN && !normBefore.includes(normText)) {
           found.push(edit);
         }
         candPtr++;
       }
-
     } else if (edit.ty === "ds") {
       docStates[tIdx] = applyDelete(docStates[tIdx], edit.si, edit.ei);
     }
@@ -376,11 +418,10 @@ async function detectCopiedText(edits, userId = "default") {
   document.getElementById("copyCount").textContent = ` (${found.length})`;
 }
 
-
 function _renderCopyCards(items, allEdits) {
-  const container  = document.getElementById("copyCardContainer");
+  const container = document.getElementById("copyCardContainer");
   const showAllBtn = document.getElementById("showAllCopyBtn");
-  const hideBtn    = document.getElementById("hideCopyBtn");
+  const hideBtn = document.getElementById("hideCopyBtn");
 
   function render(from, to) {
     container.innerHTML = "";
@@ -397,7 +438,7 @@ function _renderCopyCards(items, allEdits) {
   if (items.length > COPY_PREVIEW) {
     render(0, COPY_PREVIEW);
     showAllBtn.style.display = "inline-block";
-    hideBtn.style.display    = "none";
+    hideBtn.style.display = "none";
   } else {
     render(0, items.length);
     showAllBtn.style.display = "none";
@@ -406,12 +447,12 @@ function _renderCopyCards(items, allEdits) {
   showAllBtn.onclick = () => {
     render(0, items.length);
     showAllBtn.style.display = "none";
-    hideBtn.style.display    = "inline-block";
+    hideBtn.style.display = "inline-block";
   };
   hideBtn.onclick = () => {
     render(0, COPY_PREVIEW);
     showAllBtn.style.display = "inline-block";
-    hideBtn.style.display    = "none";
+    hideBtn.style.display = "none";
   };
 }
 
@@ -432,13 +473,17 @@ function _jumpToEdit(item, allEdits) {
       const slider = document.getElementById("playbackSlider");
       slider.value = posInTab;
       slider.dispatchEvent(new Event("input", { bubbles: true }));
-      document.getElementById("playbackSlider").scrollIntoView({ behavior: "smooth" });
+      document
+        .getElementById("playbackSlider")
+        .scrollIntoView({ behavior: "smooth" });
     }, 150);
   } else {
     const slider = document.getElementById("playbackSlider");
     slider.value = posInTab;
     slider.dispatchEvent(new Event("input", { bubbles: true }));
-    document.getElementById("playbackSlider").scrollIntoView({ behavior: "smooth" });
+    document
+      .getElementById("playbackSlider")
+      .scrollIntoView({ behavior: "smooth" });
   }
 }
 
@@ -454,55 +499,61 @@ function buildDateChart(edits) {
 
   edits.forEach((e) => {
     const d = new Date(e.time);
-    const key = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+    const key = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
     dateMap.set(key, (dateMap.get(key) || 0) + 1);
   });
 
   const labels = [...dateMap.keys()];
-  const data   = [...dateMap.values()];
+  const data = [...dateMap.values()];
 
   if (chartDate) chartDate.destroy();
   chartDate = new Chart(document.getElementById("dateChart"), {
     type: "line",
     data: {
       labels,
-      datasets: [{
-        data,
-        borderColor: CHART_COLOR,
-        backgroundColor: 'rgba(139, 92, 246, 0.08)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: CHART_COLOR,
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        pointHoverBackgroundColor: CHART_LINE_COLOR
-      }]
+      datasets: [
+        {
+          data,
+          borderColor: CHART_COLOR,
+          backgroundColor: "rgba(139, 92, 246, 0.08)",
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: CHART_COLOR,
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointHoverBackgroundColor: CHART_LINE_COLOR,
+        },
+      ],
     },
     options: {
       plugins: { legend: { display: false } },
       scales: {
-        x: { 
+        x: {
           title: { display: true, text: "Date" },
-          grid: { color: 'rgba(139, 92, 246, 0.05)' }
+          grid: { color: "rgba(139, 92, 246, 0.05)" },
         },
-        y: { 
-          title: { display: true, text: "Edits" }, 
+        y: {
+          title: { display: true, text: "Edits" },
           beginAtZero: true,
-          grid: { color: 'rgba(139, 92, 246, 0.05)' }
-        }
+          grid: { color: "rgba(139, 92, 246, 0.05)" },
+        },
       },
       onClick(_, elements) {
         if (elements.length > 0) {
-          const idx   = elements[0].index;
+          const idx = elements[0].index;
           const parts = labels[idx].split("/");
-          const date  = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+          const date = new Date(
+            parseInt(parts[0]),
+            parseInt(parts[1]) - 1,
+            parseInt(parts[2]),
+          );
           buildHourChart(edits, date);
         }
-      }
-    }
+      },
+    },
   });
 }
 
@@ -513,11 +564,13 @@ function buildHourChart(edits, filterDate) {
   if (filterDate && filterDate !== "all") {
     filtered = edits.filter((e) => {
       const d = new Date(e.time);
-      return d.getFullYear() === filterDate.getFullYear()
-          && d.getMonth()    === filterDate.getMonth()
-          && d.getDate()     === filterDate.getDate();
+      return (
+        d.getFullYear() === filterDate.getFullYear() &&
+        d.getMonth() === filterDate.getMonth() &&
+        d.getDate() === filterDate.getDate()
+      );
     });
-    const label = `${filterDate.getFullYear()}/${String(filterDate.getMonth()+1).padStart(2,"0")}/${String(filterDate.getDate()).padStart(2,"0")}`;
+    const label = `${filterDate.getFullYear()}/${String(filterDate.getMonth() + 1).padStart(2, "0")}/${String(filterDate.getDate()).padStart(2, "0")}`;
     document.getElementById("hourChartDateLabel").textContent = label;
     resetBtn.style.display = "inline-block";
   } else {
@@ -534,7 +587,7 @@ function buildHourChart(edits, filterDate) {
   const sortedHours = [...hourMap.keys()].sort((a, b) => a - b);
   const labels = sortedHours.map((h) => {
     const period = h >= 12 ? "PM" : "AM";
-    const hour   = h % 12 || 12;
+    const hour = h % 12 || 12;
     return `${hour} ${period}`;
   });
   const data = sortedHours.map((h) => hourMap.get(h));
@@ -544,35 +597,37 @@ function buildHourChart(edits, filterDate) {
     type: "line",
     data: {
       labels,
-      datasets: [{
-        data,
-        borderColor: CHART_COLOR,
-        backgroundColor: 'rgba(139, 92, 246, 0.08)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: CHART_COLOR,
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        pointHoverBackgroundColor: CHART_LINE_COLOR
-      }]
+      datasets: [
+        {
+          data,
+          borderColor: CHART_COLOR,
+          backgroundColor: "rgba(139, 92, 246, 0.08)",
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: CHART_COLOR,
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointHoverBackgroundColor: CHART_LINE_COLOR,
+        },
+      ],
     },
     options: {
       plugins: { legend: { display: false } },
       scales: {
-        x: { 
+        x: {
           title: { display: true, text: "Hour of Day" },
-          grid: { color: 'rgba(139, 92, 246, 0.05)' }
+          grid: { color: "rgba(139, 92, 246, 0.05)" },
         },
-        y: { 
-          title: { display: true, text: "Edits" }, 
+        y: {
+          title: { display: true, text: "Edits" },
           beginAtZero: true,
-          grid: { color: 'rgba(139, 92, 246, 0.05)' }
-        }
-      }
-    }
+          grid: { color: "rgba(139, 92, 246, 0.05)" },
+        },
+      },
+    },
   });
 }
 
@@ -581,17 +636,17 @@ function buildTimePerDayChart(edits) {
 
   edits.forEach((e) => {
     const d = new Date(e.time);
-    const key = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+    const key = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
     if (!dayMap.has(key)) dayMap.set(key, []);
     dayMap.get(key).push(e);
   });
 
   const labels = [];
-  const data   = [];
+  const data = [];
 
   dayMap.forEach((dayEdits, key) => {
     labels.push(key);
-    const ms   = calcTotalWritingTime(dayEdits);
+    const ms = calcTotalWritingTime(dayEdits);
     data.push(Math.round(ms / 60_000));
   });
 
@@ -600,41 +655,43 @@ function buildTimePerDayChart(edits) {
     type: "line",
     data: {
       labels,
-      datasets: [{
-        data,
-        borderColor: CHART_COLOR,
-        backgroundColor: 'rgba(139, 92, 246, 0.08)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: CHART_COLOR,
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        pointHoverBackgroundColor: CHART_LINE_COLOR
-      }]
+      datasets: [
+        {
+          data,
+          borderColor: CHART_COLOR,
+          backgroundColor: "rgba(139, 92, 246, 0.08)",
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: CHART_COLOR,
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointHoverBackgroundColor: CHART_LINE_COLOR,
+        },
+      ],
     },
     options: {
       plugins: { legend: { display: false } },
       scales: {
-        x: { 
+        x: {
           title: { display: true, text: "Date" },
-          grid: { color: 'rgba(139, 92, 246, 0.05)' }
+          grid: { color: "rgba(139, 92, 246, 0.05)" },
         },
-        y: { 
-          title: { display: true, text: "Minutes" }, 
+        y: {
+          title: { display: true, text: "Minutes" },
           beginAtZero: true,
-          grid: { color: 'rgba(139, 92, 246, 0.05)' }
-        }
-      }
-    }
+          grid: { color: "rgba(139, 92, 246, 0.05)" },
+        },
+      },
+    },
   });
 }
 
 async function buildGroupPieChart(edits, users, metric = "time") {
-  const names  = [];
-  const data   = [];
+  const names = [];
+  const data = [];
   const colors = [];
 
   for (const uid in users) {
@@ -654,39 +711,43 @@ async function buildGroupPieChart(edits, users, metric = "time") {
     type: "doughnut",
     data: {
       labels: names,
-      datasets: [{
-        data,
-        backgroundColor: colors.map(c => c + '20'),
-        borderColor: colors,
-        borderWidth: 3,
-        hoverOffset: 12
-      }]
+      datasets: [
+        {
+          data,
+          backgroundColor: colors.map((c) => c + "20"),
+          borderColor: colors,
+          borderWidth: 3,
+          hoverOffset: 12,
+        },
+      ],
     },
     options: {
       plugins: {
         legend: {
-          position: 'right',
+          position: "right",
           labels: {
-            font: { size: 12, weight: '600' },
+            font: { size: 12, weight: "600" },
             padding: 15,
-            usePointStyle: true
-          }
+            usePointStyle: true,
+          },
         },
         tooltip: {
-          backgroundColor: 'rgba(30, 27, 75, 0.9)',
-          titleFont: { size: 13, weight: '700' },
-          bodyFont: { size: 12, weight: '600' },
+          backgroundColor: "rgba(30, 27, 75, 0.9)",
+          titleFont: { size: 13, weight: "700" },
+          bodyFont: { size: 12, weight: "600" },
           padding: 12,
-          borderColor: 'rgba(139, 92, 246, 0.5)',
+          borderColor: "rgba(139, 92, 246, 0.5)",
           borderWidth: 1,
           callbacks: {
             label(ctx) {
-              return metric === "time" ? `${ctx.parsed} min` : `${ctx.parsed} edits`;
-            }
-          }
-        }
-      }
-    }
+              return metric === "time"
+                ? `${ctx.parsed} min`
+                : `${ctx.parsed} edits`;
+            },
+          },
+        },
+      },
+    },
   });
 }
 
@@ -700,9 +761,9 @@ function populateUserDropdown(selectId, users) {
   while (sel.options.length > 1) sel.remove(1);
 
   Object.entries(users).forEach(([uid, info]) => {
-    const opt   = document.createElement("option");
-    opt.value   = uid;
-    opt.text    = info.name || "Anonymous";
+    const opt = document.createElement("option");
+    opt.value = uid;
+    opt.text = info.name || "Anonymous";
     sel.appendChild(opt);
   });
 }
@@ -713,7 +774,7 @@ function populateUserDropdown(selectId, users) {
 
 function replayToIndex(edits, index, initialContent) {
   let docBefore = initialContent;
-  let docAfter  = initialContent;
+  let docAfter = initialContent;
 
   for (let i = 0; i < index; i++) {
     const e = edits[i];
@@ -738,7 +799,7 @@ function renderEditInPlayback(edits, index, initialContent, highlightUserId) {
 
   if (!edit) {
     document.getElementById("playbackArea").textContent = docAfter;
-    document.getElementById("replayDate").textContent   = "";
+    document.getElementById("replayDate").textContent = "";
     return;
   }
 
@@ -747,16 +808,24 @@ function renderEditInPlayback(edits, index, initialContent, highlightUserId) {
   let html;
   if (edit.ty === "is") {
     const before = docAfter.slice(0, edit.loc - 1);
-    const ins    = edit.text;
-    const after  = docAfter.slice(edit.loc - 1 + ins.length);
-    const cls    = (highlightUserId !== "default" && edit.userId === highlightUserId)
-                   ? "ins-hl" : "ins";
-    html = _esc(before) + `<mark id="scrollMark" class="${cls}">${_esc(ins)}</mark>` + _esc(after);
+    const ins = edit.text;
+    const after = docAfter.slice(edit.loc - 1 + ins.length);
+    const cls =
+      highlightUserId !== "default" && edit.userId === highlightUserId
+        ? "ins-hl"
+        : "ins";
+    html =
+      _esc(before) +
+      `<mark id="scrollMark" class="${cls}">${_esc(ins)}</mark>` +
+      _esc(after);
   } else if (edit.ty === "ds") {
-    const pre     = docBefore.slice(0, edit.si - 1);
+    const pre = docBefore.slice(0, edit.si - 1);
     const deleted = docBefore.slice(edit.si - 1, edit.ei);
-    const post    = docBefore.slice(edit.ei);
-    html = _esc(pre) + `<del id="scrollMark" class="del">${_esc(deleted)}</del>` + _esc(post);
+    const post = docBefore.slice(edit.ei);
+    html =
+      _esc(pre) +
+      `<del id="scrollMark" class="del">${_esc(deleted)}</del>` +
+      _esc(post);
   } else {
     html = _esc(docAfter);
   }
@@ -777,21 +846,18 @@ function renderEditInPlayback(edits, index, initialContent, highlightUserId) {
 
 // Simple HTML escape
 function _esc(str) {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function initVideoReplay(allEdits, initialContent) {
-  const slider     = document.getElementById("playbackSlider");
-  const playBtn    = document.getElementById("playBtn");
-  const nextBtn    = document.getElementById("nextEditBtn");
-  const prevBtn    = document.getElementById("prevEditBtn");
-  const speedSel   = document.getElementById("speedSelect");
-  const hlSelect   = document.getElementById("highlightUserSelect");
+  const slider = document.getElementById("playbackSlider");
+  const playBtn = document.getElementById("playBtn");
+  const nextBtn = document.getElementById("nextEditBtn");
+  const prevBtn = document.getElementById("prevEditBtn");
+  const speedSel = document.getElementById("speedSelect");
+  const hlSelect = document.getElementById("highlightUserSelect");
 
-  let playing   = false;
+  let playing = false;
   let currentIdx = 0;
   let interval;
 
@@ -809,12 +875,12 @@ function initVideoReplay(allEdits, initialContent) {
     const filtered = getFiltered();
     renderEditInPlayback(filtered, idx, initialContent, hlSelect.value);
     slider.value = idx;
-    currentIdx   = idx;
+    currentIdx = idx;
   }
 
   function startPlay() {
     const speed = parseFloat(speedSel.value);
-    playing     = true;
+    playing = true;
     playBtn.textContent = "Pause";
     interval = setInterval(() => {
       const filtered = getFiltered();
@@ -833,7 +899,7 @@ function initVideoReplay(allEdits, initialContent) {
     playBtn.textContent = "Play";
   }
 
-  playBtn.addEventListener("click", () => playing ? stopPlay() : startPlay());
+  playBtn.addEventListener("click", () => (playing ? stopPlay() : startPlay()));
 
   nextBtn.addEventListener("click", () => {
     stopPlay();
@@ -849,7 +915,10 @@ function initVideoReplay(allEdits, initialContent) {
   });
 
   speedSel.addEventListener("change", () => {
-    if (playing) { stopPlay(); startPlay(); }
+    if (playing) {
+      stopPlay();
+      startPlay();
+    }
   });
 
   slider.addEventListener("input", () => {
@@ -868,29 +937,32 @@ function initVideoReplay(allEdits, initialContent) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function renderGroupBreakdown(allEdits, initialContent, users) {
-  const slider   = document.getElementById("playbackSlider");
-  const filtered = filterByTab(allEdits, getActiveTab()).slice(0, parseInt(slider.value) + 1);
+  const slider = document.getElementById("playbackSlider");
+  const filtered = filterByTab(allEdits, getActiveTab()).slice(
+    0,
+    parseInt(slider.value) + 1,
+  );
 
-  let text     = initialContent;
-  let authors  = new Array(initialContent.length).fill(null);
+  let text = initialContent;
+  let authors = new Array(initialContent.length).fill(null);
 
   filtered.forEach((e) => {
     if (e.ty === "is") {
       const before = authors.slice(0, e.loc - 1);
       const newArr = new Array(e.text.length).fill(e.userId);
-      const after  = authors.slice(e.loc - 1);
+      const after = authors.slice(e.loc - 1);
       authors = before.concat(newArr, after);
-      text    = applyInsert(text, e.loc, e.text);
+      text = applyInsert(text, e.loc, e.text);
     } else if (e.ty === "ds") {
       authors = authors.slice(0, e.si - 1).concat(authors.slice(e.ei));
-      text    = applyDelete(text, e.si, e.ei);
+      text = applyDelete(text, e.si, e.ei);
     }
   });
 
   // Build coloured HTML
-  let html     = "";
-  let curUid   = authors[0];
-  let segment  = text[0] || "";
+  let html = "";
+  let curUid = authors[0];
+  let segment = text[0] || "";
 
   for (let i = 1; i < text.length; i++) {
     if (authors[i] === curUid) {
@@ -902,7 +974,7 @@ function renderGroupBreakdown(allEdits, initialContent, users) {
         html += _esc(segment);
       }
       segment = text[i];
-      curUid  = authors[i];
+      curUid = authors[i];
     }
   }
   // Last segment
@@ -921,8 +993,8 @@ function renderGroupBreakdown(allEdits, initialContent, users) {
   legend.innerHTML = "";
   Object.entries(users).forEach(([uid, info]) => {
     const tag = document.createElement("span");
-    tag.className             = "user-color-tag";
-    tag.textContent           = info.name || "Anonymous";
+    tag.className = "user-color-tag";
+    tag.textContent = info.name || "Anonymous";
     tag.style.backgroundColor = lightenColor(info.color || "#aaa");
     legend.appendChild(tag);
   });
@@ -932,13 +1004,17 @@ function renderGroupBreakdown(allEdits, initialContent, users) {
 // 13.  FULL REPORT RENDER (called on load and on user filter change)
 // ══════════════════════════════════════════════════════════════════════════════
 
-async function renderFullReport(edits, users) {
-  renderDocStats(edits);
+async function renderFullReport(edits, users, savedTimeMs = 0) {
+  renderDocStats(edits, savedTimeMs);
   renderSessionsSection(edits);
   buildDateChart(edits);
   buildHourChart(edits, "all");
   buildTimePerDayChart(edits);
-  buildGroupPieChart(edits, users, document.getElementById("groupMetricSelect").value);
+  buildGroupPieChart(
+    edits,
+    users,
+    document.getElementById("groupMetricSelect").value,
+  );
   await detectCopiedText(edits, document.getElementById("userSelect").value);
 }
 
@@ -952,8 +1028,8 @@ function cleanUserMap(edits, rawUserMap) {
   Object.entries(rawUserMap).forEach(([uid, info]) => {
     if (activeUserIds.has(uid)) {
       cleaned[uid] = {
-        name:  info.name || "Anonymous",
-        color: info.color || "#888"
+        name: info.name || "Anonymous",
+        color: info.color || "#888",
       };
     }
   });
@@ -1015,26 +1091,34 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Remove from storage (single‑use)
   chrome.storage.local.remove(storageKey);
 
-  const token   = reportData.token;
+  const token = reportData.token;
   const baseurl = reportData.baseurl;
-  const title   = reportData.title;
-  tabsData      = reportData.tabs || {};
+  const title = reportData.title;
+  tabsData = reportData.tabs || {};
   // (Save tabsData to localStorage for future reloads if needed)
-  try { localStorage.setItem("srTabsData", JSON.stringify(tabsData)); } catch (_) {}
+  try {
+    localStorage.setItem("srTabsData", JSON.stringify(tabsData));
+  } catch (_) {}
 
-  document.getElementById("docTitle").textContent = title || "Untitled Document";
+  document.getElementById("docTitle").textContent =
+    title || "Untitled Document";
 
   const overlay = document.getElementById("loadingOverlay");
   overlay.style.display = "flex";
 
   try {
     // 1. Fetch tile metadata
-    const tileData  = await fetchTileData(docId, token, baseurl);
+    const tileData = await fetchTileData(docId, token, baseurl);
     const totalRevs = tileData.tileInfo[tileData.tileInfo.length - 1].end;
-    const rawUsers  = tileData.userMap;
+    const rawUsers = tileData.userMap;
 
     // 2. Fetch full changelog
-    const changelogJson = await fetchChangelog(docId, token, baseurl, totalRevs);
+    const changelogJson = await fetchChangelog(
+      docId,
+      token,
+      baseurl,
+      totalRevs,
+    );
 
     // 3. Parse edits
     globalEdits = generateEdits(changelogJson.changelog, []);
@@ -1056,33 +1140,56 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 8. Init replay
     initVideoReplay(globalEdits, firstContent);
 
-    // 9. Render report
-    await renderFullReport(globalEdits, globalUsers);
+    // Load saved accumulated time from infobar if available
+    let _reportSavedTimeMs = 0;
+    const storageName = `scriptrail_writingTime_${docId}`;
+    const savedData = await chrome.storage.local.get([storageName]);
+    if (savedData[storageName] && typeof savedData[storageName] === "number") {
+      _reportSavedTimeMs = savedData[storageName];
+      console.log(
+        "[Scriptrail report] Loaded saved time:",
+        Math.floor(_reportSavedTimeMs / 60_000),
+        "min"
+      );
+    }
+
+    // 9. Render report (with saved time for all-users view)
+    await renderFullReport(globalEdits, globalUsers, _reportSavedTimeMs);
 
     // ── Wire up group breakdown button
-    document.getElementById("groupBreakdownBtn").addEventListener("click", () => {
-      // Pause replay if playing
-      if (document.getElementById("playBtn").textContent === "Pause") {
-        document.getElementById("playBtn").click();
-      }
-      setTimeout(() => renderGroupBreakdown(globalEdits, firstContent, globalUsers), 80);
-    });
+    document
+      .getElementById("groupBreakdownBtn")
+      .addEventListener("click", () => {
+        // Pause replay if playing
+        if (document.getElementById("playBtn").textContent === "Pause") {
+          document.getElementById("playBtn").click();
+        }
+        setTimeout(
+          () => renderGroupBreakdown(globalEdits, firstContent, globalUsers),
+          80,
+        );
+      });
 
     // ── Wire up group metric dropdown
-    document.getElementById("groupMetricSelect").addEventListener("change", () => {
-      buildGroupPieChart(
-        filterByUser(globalEdits, document.getElementById("userSelect").value),
-        globalUsers,
-        document.getElementById("groupMetricSelect").value
-      );
-    });
+    document
+      .getElementById("groupMetricSelect")
+      .addEventListener("change", () => {
+        buildGroupPieChart(
+          filterByUser(
+            globalEdits,
+            document.getElementById("userSelect").value,
+          ),
+          globalUsers,
+          document.getElementById("groupMetricSelect").value,
+        );
+      });
 
     // ── Wire up report user filter
     const userSelect = document.getElementById("userSelect");
     userSelect.addEventListener("change", async () => {
-      const uid        = userSelect.value;
-      const label      = userSelect.options[userSelect.selectedIndex].text;
-      const filtered   = filterByUser(globalEdits, uid);
+      const uid = userSelect.value;
+      const label = userSelect.options[userSelect.selectedIndex].text;
+      const filtered = filterByUser(globalEdits, uid);
 
       // Update all "All Users" labels
       document.getElementById("reportUserLabel").textContent = label;
@@ -1093,23 +1200,27 @@ document.addEventListener("DOMContentLoaded", async () => {
         el.textContent = label;
       });
 
-      await renderFullReport(filtered, globalUsers);
+      // Don't use saved time when filtering by user; calculate fresh for that user only
+      await renderFullReport(filtered, globalUsers, 0);
     });
 
     // ── Wire up "show links" checkbox
-    document.getElementById("showLinksCheckbox").addEventListener("change", async () => {
-      const uid      = document.getElementById("userSelect").value;
-      const filtered = filterByUser(globalEdits, uid);
-      await detectCopiedText(filtered, uid);
-    });
+    document
+      .getElementById("showLinksCheckbox")
+      .addEventListener("change", async () => {
+        const uid = document.getElementById("userSelect").value;
+        const filtered = filterByUser(globalEdits, uid);
+        await detectCopiedText(filtered, uid);
+      });
 
     // ── Wire up reset time chart button
-    document.getElementById("resetTimeChartBtn").addEventListener("click", () => {
-      const uid      = document.getElementById("userSelect").value;
-      const filtered = filterByUser(globalEdits, uid);
-      buildHourChart(filtered, "all");
-    });
-
+    document
+      .getElementById("resetTimeChartBtn")
+      .addEventListener("click", () => {
+        const uid = document.getElementById("userSelect").value;
+        const filtered = filterByUser(globalEdits, uid);
+        buildHourChart(filtered, "all");
+      });
   } catch (err) {
     console.error("[Scriptrail] report error:", err);
     document.getElementById("loadingMessage").innerHTML =
@@ -1120,7 +1231,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Hide overlay
   overlay.style.display = "none";
 });
-
 
 // Restore tabsData from localStorage (if page was refreshed)
 try {

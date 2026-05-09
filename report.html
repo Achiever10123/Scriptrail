@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="report.css" />
   </head>
   <body>
-
     <!-- Loading Overlay -->
     <div id="loadingOverlay">
       <div id="loadingSpinner"></div>
@@ -21,7 +20,11 @@
           <img src="icons/icon128.png" alt="Scriptrail" class="header-icon" />
           <span class="header-name">Scriptrail</span>
         </div>
-        <button id="darkModeToggle" class="dark-mode-btn" title="Toggle Dark Mode">
+        <button
+          id="darkModeToggle"
+          class="dark-mode-btn"
+          title="Toggle Dark Mode"
+        >
           <span class="dark-mode-icon">🌙</span>
         </button>
       </div>
@@ -29,7 +32,6 @@
     </header>
 
     <main>
-
       <!-- ── Replay Section ──────────────────────────────────────────────────── -->
       <section id="replaySection" class="card">
         <h2 class="section-title">Edit Replay</h2>
@@ -116,7 +118,10 @@
             <span id="copyCount"></span>
             <span class="tooltip-wrap">
               ⓘ
-              <span class="tooltip-text">Text pasted from an external source not previously in the document.</span>
+              <span class="tooltip-text"
+                >Text pasted from an external source not previously in the
+                document.</span
+              >
             </span>
           </h3>
           <label class="checkbox-row">
@@ -126,7 +131,7 @@
           <div id="copyCardContainer" class="card-grid"></div>
           <div class="btn-row">
             <button id="showAllCopyBtn">Show All</button>
-            <button id="hideCopyBtn" style="display:none">Show Less</button>
+            <button id="hideCopyBtn" style="display: none">Show Less</button>
           </div>
         </div>
 
@@ -134,19 +139,31 @@
         <div id="graphSection">
           <h3>
             Edits per Date — <span class="report-user-span">All Users</span>
-            <span class="tooltip-wrap">ⓘ<span class="tooltip-text">Total changes made per day (inserts + deletes). A paste = 1 edit.</span></span>
+            <span class="tooltip-wrap"
+              >ⓘ<span class="tooltip-text"
+                >Total changes made per day (inserts + deletes). A paste = 1
+                edit.</span
+              ></span
+            >
           </h3>
-          <p class="chart-hint">Click a bar to drill into that day's hourly breakdown.</p>
+          <p class="chart-hint">
+            Click a bar to drill into that day's hourly breakdown.
+          </p>
           <canvas id="dateChart" class="chart-canvas"></canvas>
 
           <h3>
-            Edits by Hour — <span class="report-user-span">All Users</span>
-            on <span id="hourChartDateLabel">All Dates</span>
+            Edits by Hour — <span class="report-user-span">All Users</span> on
+            <span id="hourChartDateLabel">All Dates</span>
           </h3>
-          <button id="resetTimeChartBtn" style="display:none">View All Dates</button>
+          <button id="resetTimeChartBtn" style="display: none">
+            View All Dates
+          </button>
           <canvas id="timeChart" class="chart-canvas"></canvas>
 
-          <h3>Time Spent per Date — <span class="report-user-span">All Users</span></h3>
+          <h3>
+            Time Spent per Date —
+            <span class="report-user-span">All Users</span>
+          </h3>
           <canvas id="timePerDayChart" class="chart-canvas"></canvas>
         </div>
 
@@ -156,11 +173,15 @@
             Writing Sessions — <span class="report-user-span">All Users</span>
             <span id="sessionCount"></span>
           </h3>
-          <p class="chart-hint">A continuous period of writing with no gap longer than 10 minutes.</p>
+          <p class="chart-hint">
+            A continuous period of writing with no gap longer than 10 minutes.
+          </p>
           <div id="sessionCards"></div>
           <div class="btn-row">
             <button id="showAllSessionsBtn">See All</button>
-            <button id="hideSessionsBtn" style="display:none">Show Less</button>
+            <button id="hideSessionsBtn" style="display: none">
+              Show Less
+            </button>
           </div>
         </div>
 
@@ -173,7 +194,6 @@
           </select>
           <canvas id="groupPieChart" class="pie-canvas"></canvas>
         </div>
-
       </section>
     </main>
 
