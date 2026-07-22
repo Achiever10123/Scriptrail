@@ -186,7 +186,10 @@ function buildTabsPanel(edits, redraw = true) {
   globalTabs = tabKeys;
 
   const container = document.getElementById("tabsContainer");
-  container.innerHTML = "";
+  // Clear container safely using DOM methods
+  while (container.firstChild) {
+    container.removeChild(container.firstChild);
+  }
 
   tabKeys.forEach((key, i) => {
     const div = document.createElement("div");
@@ -250,10 +253,40 @@ function renderDocStats(edits, savedTimeMs = 0) {
 
   document.getElementById("statWords").textContent = `Word Count: ${wordCount}`;
   document.getElementById("statDeletes").textContent = `Deletes: ${deletes}`;
-  document.getElementById("statTime").innerHTML =
-    `<span class="tooltip-wrap" style="cursor:default">Time Spent<span class="tooltip-text">Active typing time; gaps > 10 min end a session.</span></span>: ${Math.floor(totalMins / 60)} hr ${totalMins % 60} min`;
-  document.getElementById("statEdits").innerHTML =
-    `<span class="tooltip-wrap" style="cursor:default">Edits<span class="tooltip-text">Total inserts + deletes, including pastes.</span></span>: ${edits.length}`;
+  
+  // Build statTime safely with textContent to prevent XSS
+  const statTimeEl = document.getElementById("statTime");
+  // Clear element safely using DOM methods
+  while (statTimeEl.firstChild) {
+    statTimeEl.removeChild(statTimeEl.firstChild);
+  }
+  const tooltipWrap1 = document.createElement('span');
+  tooltipWrap1.className = 'tooltip-wrap';
+  tooltipWrap1.style.cursor = 'default';
+  tooltipWrap1.textContent = 'Time Spent';
+  const tooltipText1 = document.createElement('span');
+  tooltipText1.className = 'tooltip-text';
+  tooltipText1.textContent = 'Active typing time; gaps > 10 min end a session.';
+  tooltipWrap1.appendChild(tooltipText1);
+  statTimeEl.appendChild(tooltipWrap1);
+  statTimeEl.appendChild(document.createTextNode(`: ${Math.floor(totalMins / 60)} hr ${totalMins % 60} min`));
+  
+  // Build statEdits safely with textContent to prevent XSS
+  const statEditsEl = document.getElementById("statEdits");
+  // Clear element safely using DOM methods
+  while (statEditsEl.firstChild) {
+    statEditsEl.removeChild(statEditsEl.firstChild);
+  }
+  const tooltipWrap2 = document.createElement('span');
+  tooltipWrap2.className = 'tooltip-wrap';
+  tooltipWrap2.style.cursor = 'default';
+  tooltipWrap2.textContent = 'Edits';
+  const tooltipText2 = document.createElement('span');
+  tooltipText2.className = 'tooltip-text';
+  tooltipText2.textContent = 'Total inserts + deletes, including pastes.';
+  tooltipWrap2.appendChild(tooltipText2);
+  statEditsEl.appendChild(tooltipWrap2);
+  statEditsEl.appendChild(document.createTextNode(`: ${edits.length}`));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -306,23 +339,50 @@ function renderSessionsSection(edits) {
   const count = _sessions.length;
 
   document.getElementById("sessionCount").textContent = `(${count})`;
-  document.getElementById("sessionCards").innerHTML = "";
+  // Clear sessionCards safely using DOM methods
+  const sessionCardsEl = document.getElementById("sessionCards");
+  while (sessionCardsEl.firstChild) {
+    sessionCardsEl.removeChild(sessionCardsEl.firstChild);
+  }
 
   const seeAllBtn = document.getElementById("showAllSessionsBtn");
   const hideBtn = document.getElementById("hideSessionsBtn");
 
   function showSessions(from, to) {
     const container = document.getElementById("sessionCards");
-    container.innerHTML = "";
+    // Clear container safely using DOM methods
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
     for (let i = from; i < to; i++) {
       const s = _sessions[i];
       const div = document.createElement("div");
       div.className = "session-card";
-      div.innerHTML = `
-        <p><span class="label">Start:</span> ${formatDate(s.startTime)}</p>
-        <p><span class="label">Duration:</span> ${formatDuration(s.duration)}</p>
-        <p><span class="label">Edits:</span> ${s.revisions}</p>
-      `;
+      // Use textContent to prevent XSS - build DOM safely
+      const p1 = document.createElement('p');
+      const label1 = document.createElement('span');
+      label1.className = 'label';
+      label1.textContent = 'Start:';
+      p1.appendChild(label1);
+      p1.appendChild(document.createTextNode(' ' + formatDate(s.startTime)));
+      
+      const p2 = document.createElement('p');
+      const label2 = document.createElement('span');
+      label2.className = 'label';
+      label2.textContent = 'Duration:';
+      p2.appendChild(label2);
+      p2.appendChild(document.createTextNode(' ' + formatDuration(s.duration)));
+      
+      const p3 = document.createElement('p');
+      const label3 = document.createElement('span');
+      label3.className = 'label';
+      label3.textContent = 'Edits:';
+      p3.appendChild(label3);
+      p3.appendChild(document.createTextNode(' ' + String(s.revisions)));
+      
+      div.appendChild(p1);
+      div.appendChild(p2);
+      div.appendChild(p3);
       container.appendChild(div);
     }
   }
@@ -424,12 +484,25 @@ function _renderCopyCards(items, allEdits) {
   const hideBtn = document.getElementById("hideCopyBtn");
 
   function render(from, to) {
-    container.innerHTML = "";
+    // Clear container safely using DOM methods
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
     for (let i = from; i < to; i++) {
       const item = items[i];
       const card = document.createElement("div");
       card.className = "copy-card";
-      card.innerHTML = `<p class="copy-meta">${formatDate(item.time)} — ${globalUsers[item.userId]?.name ?? item.userId}</p>${item.text}`;
+      // Use textContent to prevent XSS - build DOM safely
+      const metaP = document.createElement('p');
+      metaP.className = 'copy-meta';
+      const userName = globalUsers[item.userId]?.name ?? item.userId;
+      metaP.textContent = `${formatDate(item.time)} — ${userName}`;
+      
+      const textDiv = document.createElement('div');
+      textDiv.textContent = item.text;
+      
+      card.appendChild(metaP);
+      card.appendChild(textDiv);
       card.addEventListener("click", () => _jumpToEdit(item, allEdits));
       container.appendChild(card);
     }
@@ -805,7 +878,13 @@ function renderEditInPlayback(edits, index, initialContent, highlightUserId) {
 
   document.getElementById("replayDate").textContent = formatDate(edit.time);
 
-  let html;
+  // Build HTML safely using DOM methods instead of innerHTML
+  const area = document.getElementById("playbackArea");
+  // Clear area safely using DOM methods
+  while (area.firstChild) {
+    area.removeChild(area.firstChild);
+  }
+  
   if (edit.ty === "is") {
     const before = docAfter.slice(0, edit.loc - 1);
     const ins = edit.text;
@@ -814,24 +893,39 @@ function renderEditInPlayback(edits, index, initialContent, highlightUserId) {
       highlightUserId !== "default" && edit.userId === highlightUserId
         ? "ins-hl"
         : "ins";
-    html =
-      _esc(before) +
-      `<mark id="scrollMark" class="${cls}">${_esc(ins)}</mark>` +
-      _esc(after);
+    
+    // Create text node for before
+    area.appendChild(document.createTextNode(before));
+    
+    // Create mark element for insertion
+    const mark = document.createElement('mark');
+    mark.id = 'scrollMark';
+    mark.className = cls;
+    mark.textContent = ins;
+    area.appendChild(mark);
+    
+    // Create text node for after
+    area.appendChild(document.createTextNode(after));
   } else if (edit.ty === "ds") {
     const pre = docBefore.slice(0, edit.si - 1);
     const deleted = docBefore.slice(edit.si - 1, edit.ei);
     const post = docBefore.slice(edit.ei);
-    html =
-      _esc(pre) +
-      `<del id="scrollMark" class="del">${_esc(deleted)}</del>` +
-      _esc(post);
+    
+    // Create text node for pre
+    area.appendChild(document.createTextNode(pre));
+    
+    // Create del element for deletion
+    const delEl = document.createElement('del');
+    delEl.id = 'scrollMark';
+    delEl.className = 'del';
+    delEl.textContent = deleted;
+    area.appendChild(delEl);
+    
+    // Create text node for post
+    area.appendChild(document.createTextNode(post));
   } else {
-    html = _esc(docAfter);
+    area.textContent = docAfter;
   }
-
-  const area = document.getElementById("playbackArea");
-  area.innerHTML = html;
 
   // Auto-scroll to the marked span
   const mark = document.getElementById("scrollMark");
@@ -959,8 +1053,13 @@ function renderGroupBreakdown(allEdits, initialContent, users) {
     }
   });
 
-  // Build coloured HTML
-  let html = "";
+  // Build coloured HTML safely using DOM methods
+  const playbackArea = document.getElementById("playbackArea");
+  // Clear playbackArea safely using DOM methods
+  while (playbackArea.firstChild) {
+    playbackArea.removeChild(playbackArea.firstChild);
+  }
+  
   let curUid = authors[0];
   let segment = text[0] || "";
 
@@ -969,9 +1068,12 @@ function renderGroupBreakdown(allEdits, initialContent, users) {
       segment += text[i];
     } else {
       if (curUid && users[curUid]) {
-        html += `<span style="background:${lightenColor(users[curUid].color)}">${_esc(segment)}</span>`;
+        const span = document.createElement('span');
+        span.style.backgroundColor = lightenColor(users[curUid].color);
+        span.textContent = segment;
+        playbackArea.appendChild(span);
       } else {
-        html += _esc(segment);
+        playbackArea.appendChild(document.createTextNode(segment));
       }
       segment = text[i];
       curUid = authors[i];
@@ -980,17 +1082,21 @@ function renderGroupBreakdown(allEdits, initialContent, users) {
   // Last segment
   if (segment) {
     if (curUid && users[curUid]) {
-      html += `<span style="background:${lightenColor(users[curUid].color)}">${_esc(segment)}</span>`;
+      const span = document.createElement('span');
+      span.style.backgroundColor = lightenColor(users[curUid].color);
+      span.textContent = segment;
+      playbackArea.appendChild(span);
     } else {
-      html += _esc(segment);
+      playbackArea.appendChild(document.createTextNode(segment));
     }
   }
 
-  document.getElementById("playbackArea").innerHTML = html;
-
   // Legend
   const legend = document.getElementById("groupBreakdownColors");
-  legend.innerHTML = "";
+  // Clear legend safely using DOM methods
+  while (legend.firstChild) {
+    legend.removeChild(legend.firstChild);
+  }
   Object.entries(users).forEach(([uid, info]) => {
     const tag = document.createElement("span");
     tag.className = "user-color-tag";
@@ -1042,7 +1148,7 @@ function cleanUserMap(edits, rawUserMap) {
 
 // Dark mode functions
 function initializeDarkMode() {
-  const darkModeBtn = document.getElementById("darkModeToggle");
+  const darkModeBtn = document.getElementById("themeToggleBtn");
   const savedTheme = localStorage.getItem("scriptrail-theme") || "light";
 
   // Apply saved theme
@@ -1066,6 +1172,41 @@ function initializeDarkMode() {
       darkModeBtn.textContent = newTheme === "dark" ? "☀️" : "🌙";
     });
   }
+}
+
+// Export to Markdown function
+function exportToMarkdown() {
+  const docTitle = document.getElementById("docTitle").textContent;
+  const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  
+  let mdContent = `# ${docTitle}\n\n`;
+  mdContent += `*Exported from Scriptrail on ${new Date().toLocaleDateString()}*\n\n`;
+  mdContent += `---\n\n`;
+  
+  // Add sections
+  mdContent += `## Edit History\n\n`;
+  mdContent += `Total revisions: ${globalEdits.length}\n\n`;
+  
+  // Add copy/paste section
+  const copyCount = document.getElementById("copyCount")?.textContent || "0";
+  mdContent += `## Copy/Paste Detection\n\n`;
+  mdContent += `Detected ${copyCount} instances of copied text.\n\n`;
+  
+  // Add sessions section
+  const sessionCount = document.getElementById("sessionCount")?.textContent || "0";
+  mdContent += `## Writing Sessions\n\n`;
+  mdContent += `${sessionCount} writing sessions recorded.\n\n`;
+  
+  // Create blob and download
+  const blob = new Blob([mdContent], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${docTitle.replace(/[^a-z0-9]/gi, '_')}_${timestamp}.md`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -1221,9 +1362,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         const filtered = filterByUser(globalEdits, uid);
         buildHourChart(filtered, "all");
       });
+
+    // ── Wire up export markdown button
+    document
+      .getElementById("exportMdBtn")
+      .addEventListener("click", () => {
+        exportToMarkdown();
+      });
   } catch (err) {
     console.error("[Scriptrail] report error:", err);
-    document.getElementById("loadingMessage").innerHTML =
+    document.getElementById("loadingMessage").textContent =
       "An error occurred — make sure you have edit access to this document, then refresh.";
     return;
   }

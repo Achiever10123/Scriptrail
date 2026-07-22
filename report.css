@@ -45,6 +45,35 @@
   --shadow-lg:    0 8px 32px rgba(0,0,0,0.1);
 }
 
+[data-theme="dark"] {
+  --bg:           #1a1a1a;
+  --surface:      #242424;
+  --surface-2:    #2a2a2a;
+  --border:       #3a3a3a;
+  --border-strong:#4a4a4a;
+  
+  --primary:      #4ade80;
+  --primary-mid:  #22c55e;
+  --primary-light:#1a3d2e;
+  --primary-glow: rgba(74, 222, 128, 0.15);
+  
+  --accent:       #fb923c;
+  --accent-light: #3d2a1f;
+  
+  --ink:          #e5e5e5;
+  --ink-2:        #d4d4d4;
+  --ink-3:        #a3a3a3;
+  --ink-4:        #737373;
+  
+  --insert-bg:    #3d2a1f;
+  --hl-bg:        #1a3d2e;
+  --delete-col:   #ef4444;
+  
+  --shadow-sm:    0 1px 4px rgba(0,0,0,0.2);
+  --shadow-md:    0 4px 16px rgba(0,0,0,0.3);
+  --shadow-lg:    0 8px 32px rgba(0,0,0,0.4);
+}
+
 /* ── Reset ───────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -192,6 +221,31 @@ header {
   position: sticky;
   top: 0;
   z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.header-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--ink);
+  transition: all 0.2s ease;
+}
+
+.header-btn:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
 }
 
 .header-meta {

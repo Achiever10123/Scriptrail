@@ -208,26 +208,46 @@ function updateInfoBar(writingTime, copiedCount, sessionCount) {
 }
 
 function _renderBarContent(bar, writingTime, copiedCount, sessionCount) {
-  bar.innerHTML = `
-    <button id="scriptrailInfoBarClose" title="Close">×</button>
-    <div style="margin-top: 24px;">
-      <div class="sr-section">
-        <div class="sr-section-label">✍️ Writing Time</div>
-        <div class="sr-section-value">${writingTime}</div>
-      </div>
-      <div class="sr-section">
-        <div class="sr-section-label">📋 Copied Passages</div>
-        <div class="sr-section-value">${copiedCount}</div>
-      </div>
-      <div class="sr-section">
-        <div class="sr-section-label">🕐 Sessions</div>
-        <div class="sr-section-value">${sessionCount}</div>
-      </div>
-    </div>
-  `;
-  document
-    .getElementById("scriptrailInfoBarClose")
-    ?.addEventListener("click", _hideInfoBar);
+  // Use textContent instead of innerHTML to prevent XSS
+  // Clear bar safely using DOM methods
+  while (bar.firstChild) {
+    bar.removeChild(bar.firstChild);
+  }
+  
+  const closeBtn = document.createElement('button');
+  closeBtn.id = 'scriptrailInfoBarClose';
+  closeBtn.title = 'Close';
+  closeBtn.textContent = '×';
+  closeBtn.addEventListener('click', _hideInfoBar);
+  bar.appendChild(closeBtn);
+  
+  const contentDiv = document.createElement('div');
+  contentDiv.style.marginTop = '24px';
+  
+  const sections = [
+    { label: '✍️ Writing Time', value: String(writingTime) },
+    { label: '📋 Copied Passages', value: String(copiedCount) },
+    { label: '🕐 Sessions', value: String(sessionCount) }
+  ];
+  
+  sections.forEach(section => {
+    const sectionDiv = document.createElement('div');
+    sectionDiv.className = 'sr-section';
+    
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'sr-section-label';
+    labelDiv.textContent = section.label;
+    
+    const valueDiv = document.createElement('div');
+    valueDiv.className = 'sr-section-value';
+    valueDiv.textContent = section.value;
+    
+    sectionDiv.appendChild(labelDiv);
+    sectionDiv.appendChild(valueDiv);
+    contentDiv.appendChild(sectionDiv);
+  });
+  
+  bar.appendChild(contentDiv);
 }
 
 // Updates only the writing-time <strong> every second — never forces bar visible.
@@ -417,6 +437,12 @@ function setupInfoBarListener() {
       if (!_ctxOk()) return;
 
       console.log("[Scriptrail infoBar] Message received:", msg?.type);
+
+      // Handle theme updates from popup
+      if (msg?.type === "themeUpdate" && msg.theme) {
+        document.documentElement.setAttribute("data-theme", msg.theme);
+        return;
+      }
 
       // writingTimeTick is still sent by content.js every second but we no
       // longer use it — the live tick interval does the job from revision data.

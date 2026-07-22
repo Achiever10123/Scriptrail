@@ -43,6 +43,12 @@ function safeStorageSet(items, callback) {
   } catch (_) {}
 }
 
+// Simple HTML escape to prevent XSS
+function _escHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // PAGE DATA  (document ID, base URL, auth token)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -62,8 +68,11 @@ const baseurl =
     : "https://docs.google.com/document/d/";
 
 let documentToken = "";
+let _tokenExtracted = false;
 
 function extractToken() {
+  if (_tokenExtracted) return true;
+  
   const scripts = document.getElementsByTagName("script");
   for (let i = 0; i < scripts.length; i++) {
     const txt = scripts[i].textContent;
@@ -83,8 +92,9 @@ function extractToken() {
               frag = frag.substring(st);
               try {
                 const p = JSON.parse(frag);
-                if (p.token) {
+                if (p.token && typeof p.token === 'string' && /^[a-zA-Z0-9_-]+$/.test(p.token)) {
                   documentToken = p.token;
+                  _tokenExtracted = true;
                   return true;
                 }
               } catch (_) {}
@@ -95,8 +105,9 @@ function extractToken() {
     }
     if (!documentToken && txt.includes('"token":"')) {
       const tm = txt.match(/"token":"([^"]+)"/);
-      if (tm?.[1]) {
+      if (tm?.[1] && /^[a-zA-Z0-9_-]+$/.test(tm[1])) {
         documentToken = tm[1];
+        _tokenExtracted = true;
         return true;
       }
     }
@@ -192,8 +203,11 @@ function injectButton() {
   if (!toolbar) return false;
 
   const wrapper = document.createElement("div");
-  wrapper.innerHTML =
-    '<button id="scriptrailBtn" disabled>View Report</button>';
+  const buttonEl = document.createElement("button");
+  buttonEl.id = "scriptrailBtn";
+  buttonEl.disabled = true;
+  buttonEl.textContent = "View Report";
+  wrapper.appendChild(buttonEl);
   toolbar.appendChild(wrapper);
 
   button = document.getElementById("scriptrailBtn");
@@ -247,7 +261,14 @@ function handleButtonClick() {
 // ══════════════════════════════════════════════════════════════════════════════
 function fetchDataForInfobar() {
   if (!documentId || !documentToken) return;
-  const tilesUrl = `${baseurl}${documentId}/revisions/tiles?id=${documentId}&start=1&showDetailedRevisions=false&token=${documentToken}`;
+  
+  // Validate token format before use
+  if (!/^[a-zA-Z0-9_-]+$/.test(documentToken)) {
+    console.error("[Scriptrail] Invalid token format");
+    return;
+  }
+  
+  const tilesUrl = `${baseurl}${documentId}/revisions/tiles?id=${documentId}&start=1&showDetailedRevisions=false&token=${encodeURIComponent(documentToken)}`;
 
   fetch(tilesUrl)
     .then((r) => {
@@ -279,7 +300,11 @@ function fetchDataForInfobar() {
 }
 
 async function fetchRevisionData(docId, token, totalRevs) {
-  const url = `${baseurl}${docId}/revisions/load?id=${docId}&start=1&end=${totalRevs}`;
+  // Validate token format
+  if (!/^[a-zA-Z0-9_-]+$/.test(token)) {
+    throw new Error("Invalid token format");
+  }
+  const url = `${baseurl}${docId}/revisions/load?id=${docId}&start=1&end=${totalRevs}&token=${encodeURIComponent(token)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("revision load failed");
   return JSON.parse((await res.text()).slice(")]}'".length)).changelog;
@@ -414,6 +439,10 @@ function setupListeners() {
     chrome.runtime.onMessage.addListener((msg) => {
       if (!isCtxValid()) return;
       if (msg?.type === "toggle") updateUIFromStorage();
+      // Handle theme updates from popup
+      if (msg?.type === "themeUpdate" && msg.theme) {
+        document.documentElement.setAttribute("data-theme", msg.theme);
+      }
       // NOTE: sharedData is handled entirely in infoBar.js
     });
   } catch (_) {}
