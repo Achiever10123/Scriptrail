@@ -4,6 +4,7 @@
 //   1. Open the report tab when requested by content.js
 //   2. Relay toggle (show/hide button) messages to all open Google Docs tabs
 //   3. Forward shared edit data back to the originating tab
+//   4. Handle theme updates across tabs
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
@@ -58,6 +59,14 @@ if (message.action === "openReportTab") {
         if (chrome.runtime.lastError) { /* tab may not have infoBar yet */ }
       });
     }
+  }
+
+  // ── 6. Broadcast theme update to all tabs ───────────────────────────────────
+  if (message.action === "themeUpdate") {
+    _broadcastToDocs({
+      type: "themeUpdate",
+      theme: message.theme
+    });
   }
 });
 
