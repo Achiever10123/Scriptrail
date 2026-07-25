@@ -311,7 +311,9 @@ async function fetchRevisionData(docId, token, totalRevs) {
 }
 
 function generateEdits(changelog, edits) {
-  changelog.forEach((entry) => {
+  const len = changelog.length;
+  for (let i = 0; i < len; i++) {
+    const entry = changelog[i];
     let type;
     try {
       type = entry[0].ty;
@@ -335,10 +337,11 @@ function generateEdits(changelog, edits) {
         tab: "first",
       });
     } else if (type === "mlti") {
-      generateEdits(
-        entry[0].mts.map((mt) => [mt, entry[1], entry[2]]),
-        edits,
-      );
+      const mts = entry[0].mts;
+      const mtsLen = mts.length;
+      for (let j = 0; j < mtsLen; j++) {
+        generateEdits([[mts[j], entry[1], entry[2]]], edits);
+      }
     } else if (type === "nm") {
       const nmc = entry[0].nmc;
       const tab = entry[0].nmr[1];
@@ -361,7 +364,7 @@ function generateEdits(changelog, edits) {
           tab,
         });
     }
-  });
+  }
   return edits;
 }
 

@@ -358,6 +358,7 @@ async function getCopiedCount(edits) {
     const t0 = performance.now();
 
     const tabArr = [...new Set(edits.map((e) => e.tab || "first"))];
+    const tabKeyToIdx = new Map(tabArr.map((k, i) => [k, i]));
     let docStates = tabArr.map(() => "");
 
     const candidates = edits
@@ -366,7 +367,9 @@ async function getCopiedCount(edits) {
 
     if (candidates.length === 0) return 0;
 
-    let candPtr = 0;
+    // Create candidate lookup for O(1) access
+    const candidateByIndex = new Map(candidates.map((c) => [c._idx, c]));
+
     let found = 0;
 
     for (let i = 0; i < edits.length; i++) {
@@ -376,16 +379,16 @@ async function getCopiedCount(edits) {
       }
 
       const edit = edits[i];
-      const tIdx = tabArr.indexOf(edit.tab || "first");
-      if (tIdx < 0) continue;
+      const tIdx = tabKeyToIdx.get(edit.tab || "first");
+      if (tIdx === undefined) continue;
 
       if (edit.ty === "is" && edit.text) {
         const docBefore = docStates[tIdx];
-        docStates[tIdx] = _applyInsert(docStates[tIdx], edit.loc, edit.text);
+        docStates[tIdx] = _applyInsert(docBefore, edit.loc, edit.text);
 
-        if (candPtr < candidates.length && i === candidates[candPtr]._idx) {
-          if (!docBefore.includes(edit.text)) found++;
-          candPtr++;
+        const cand = candidateByIndex.get(i);
+        if (cand && !docBefore.includes(edit.text)) {
+          found++;
         }
       } else if (edit.ty === "ds") {
         docStates[tIdx] = _applyDelete(docStates[tIdx], edit.si, edit.ei);
