@@ -4,7 +4,7 @@
   "version": "1.0",
   "manifest_version": 3,
   "permissions": ["storage", "tabs"],
-  "host_permissions": ["https://docs.google.com/document/*"],
+  "host_permissions": ["https://docs.google.com/document/*", "https://docs.google.com/*"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icons/icon128.png"
@@ -16,9 +16,7 @@
     {
       "js": ["content.js", "infobar.js"],
       "matches": ["https://docs.google.com/document/*"],
-      "all_frames": false,
-      "match_about_blank": true,
-      "run_at": "document_end"
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
