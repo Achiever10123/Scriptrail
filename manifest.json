@@ -14,7 +14,7 @@
   },
   "content_scripts": [
     {
-      "js": ["content.js", "infoBar.js"],
+      "js": ["content.js", "infobar.js"],
       "matches": ["https://docs.google.com/document/*"],
       "all_frames": false,
       "match_about_blank": true,

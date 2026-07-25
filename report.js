@@ -104,7 +104,9 @@ async function fetchFirstContent(docId, token, baseurl) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function generateEdits(changelog, edits = []) {
-  changelog.forEach((entry) => {
+  const len = changelog.length;
+  for (let i = 0; i < len; i++) {
+    const entry = changelog[i];
     let type;
     try {
       type = entry[0].ty;
@@ -129,8 +131,11 @@ function generateEdits(changelog, edits = []) {
         tab: "first",
       });
     } else if (type === "mlti") {
-      const expanded = entry[0].mts.map((mt) => [mt, entry[1], entry[2]]);
-      generateEdits(expanded, edits);
+      const mts = entry[0].mts;
+      const mtsLen = mts.length;
+      for (let j = 0; j < mtsLen; j++) {
+        generateEdits([[mts[j], entry[1], entry[2]]], edits);
+      }
     } else if (type === "nm") {
       const nmc = entry[0].nmc;
       const tab = entry[0].nmr[1];
@@ -154,7 +159,7 @@ function generateEdits(changelog, edits = []) {
         });
       }
     }
-  });
+  }
   return edits;
 }
 
@@ -236,14 +241,16 @@ function resetReplaySlider() {
 function renderDocStats(edits, savedTimeMs = 0) {
   let text = "";
   let deletes = 0;
+  const editsLen = edits.length;
 
-  edits.forEach((e) => {
+  for (let i = 0; i < editsLen; i++) {
+    const e = edits[i];
     if (e.ty === "is") text = applyInsert(text, e.loc, e.text);
     else if (e.ty === "ds") {
       text = applyDelete(text, e.si, e.ei);
       deletes++;
     }
-  });
+  }
 
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
   const calculatedTimeMs = calcTotalWritingTime(edits);
@@ -415,18 +422,20 @@ function renderSessionsSection(edits) {
 
 async function detectCopiedText(edits, userId = "default") {
   const TIMEOUT = 7_000;
-  const MIN_LEN = 20; // ← lowered from 50
+  const MIN_LEN = 20;
   const started = performance.now();
   const showLinks =
     document.getElementById("showLinksCheckbox")?.checked ?? true;
 
   const tabKeys = [...new Set(edits.map((e) => e.tab))];
+  const tabKeyToIdx = new Map(tabKeys.map((k, i) => [k, i]));
   let docStates = tabKeys.map(() => "");
   const found = [];
 
+  // Pre-filter candidates once
   let candidates = edits
     .map((e, i) => ({ ...e, _idx: i }))
-    .filter((e) => e.ty === "is" && e.text && e.text.length >= MIN_LEN); // ← >= not >
+    .filter((e) => e.ty === "is" && e.text && e.text.length >= MIN_LEN);
 
   if (userId !== "default")
     candidates = candidates.filter((e) => e.userId === userId);
@@ -438,7 +447,8 @@ async function detectCopiedText(edits, userId = "default") {
     });
   }
 
-  let candPtr = 0;
+  // Create candidate lookup for O(1) access
+  const candidateByIndex = new Map(candidates.map((c) => [c._idx, c]));
 
   for (let i = 0; i < edits.length; i++) {
     if (i % 700 === 0) {
@@ -451,23 +461,21 @@ async function detectCopiedText(edits, userId = "default") {
     }
 
     const edit = edits[i];
-    const tIdx = tabKeys.indexOf(edit.tab || "first");
-    if (tIdx < 0) continue;
+    const tIdx = tabKeyToIdx.get(edit.tab || "first");
+    if (tIdx === undefined) continue;
 
     if (edit.ty === "is" && edit.text) {
       const docBefore = docStates[tIdx];
       docStates[tIdx] = applyInsert(docStates[tIdx], edit.loc, edit.text);
 
-      if (candPtr < candidates.length && i === candidates[candPtr]._idx) {
-        // Normalise whitespace so minor formatting differences don't cause
-        // text that was actually typed character-by-character to look like a paste.
+      const cand = candidateByIndex.get(i);
+      if (cand) {
         const normBefore = docBefore.replace(/\s+/g, " ");
         const normText = edit.text.replace(/\s+/g, " ").trim();
 
         if (normText.length >= MIN_LEN && !normBefore.includes(normText)) {
           found.push(edit);
         }
-        candPtr++;
       }
     } else if (edit.ty === "ds") {
       docStates[tIdx] = applyDelete(docStates[tIdx], edit.si, edit.ei);
@@ -569,12 +577,14 @@ const CHART_LINE_COLOR = "rgba(6, 182, 212, 1.0)";
 
 function buildDateChart(edits) {
   const dateMap = new Map();
+  const editsLen = edits.length;
 
-  edits.forEach((e) => {
+  for (let i = 0; i < editsLen; i++) {
+    const e = edits[i];
     const d = new Date(e.time);
     const key = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
     dateMap.set(key, (dateMap.get(key) || 0) + 1);
-  });
+  }
 
   const labels = [...dateMap.keys()];
   const data = [...dateMap.values()];
@@ -652,10 +662,12 @@ function buildHourChart(edits, filterDate) {
   }
 
   const hourMap = new Map();
-  filtered.forEach((e) => {
+  const filteredLen = filtered.length;
+  for (let i = 0; i < filteredLen; i++) {
+    const e = filtered[i];
     const h = new Date(e.time).getHours();
     hourMap.set(h, (hourMap.get(h) || 0) + 1);
-  });
+  }
 
   const sortedHours = [...hourMap.keys()].sort((a, b) => a - b);
   const labels = sortedHours.map((h) => {
@@ -706,22 +718,27 @@ function buildHourChart(edits, filterDate) {
 
 function buildTimePerDayChart(edits) {
   const dayMap = new Map();
+  const editsLen = edits.length;
 
-  edits.forEach((e) => {
+  for (let i = 0; i < editsLen; i++) {
+    const e = edits[i];
     const d = new Date(e.time);
     const key = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
     if (!dayMap.has(key)) dayMap.set(key, []);
     dayMap.get(key).push(e);
-  });
+  }
 
   const labels = [];
   const data = [];
+  const dayKeys = [...dayMap.keys()];
+  const dayKeysLen = dayKeys.length;
 
-  dayMap.forEach((dayEdits, key) => {
+  for (let i = 0; i < dayKeysLen; i++) {
+    const key = dayKeys[i];
     labels.push(key);
-    const ms = calcTotalWritingTime(dayEdits);
+    const ms = calcTotalWritingTime(dayMap.get(key));
     data.push(Math.round(ms / 60_000));
-  });
+  }
 
   if (chartTimePerDay) chartTimePerDay.destroy();
   chartTimePerDay = new Chart(document.getElementById("timePerDayChart"), {
