@@ -78,7 +78,7 @@ function extractToken() {
     const txt = scripts[i].textContent;
     if (!txt) continue;
     if (txt.includes("_docs_flag_initialData")) {
-      const m = txt.match(/_docs_flag_initialData=(.*?);/);
+      const m = txt.match(/_docs_flag_initialData\s*=\s*(.*?);/);
       if (m) {
         const raw = m[1];
         const idx = raw.indexOf('"info_params"');
@@ -287,7 +287,10 @@ function fetchDataForInfobar() {
           const tabs = [...new Set(edits.map((e) => e.tab))];
           safeSend({ type: "setData", payload: { edits, userMap, tabs } });
         })
-        .catch((e) => console.error("[Scriptrail] changelog:", e));
+        .catch((e) => {
+          console.error("[Scriptrail] changelog:", e);
+          safeSend({ type: "setData", payload: { edits: [], error: true } });
+        });
     })
     .catch((e) => {
       console.error("[Scriptrail] tiles:", e);
@@ -296,6 +299,7 @@ function fetchDataForInfobar() {
         button.title = "You need edit access.";
         button.disabled = true;
       }
+      safeSend({ type: "setData", payload: { edits: [], error: true } });
     });
 }
 
