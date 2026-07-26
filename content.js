@@ -72,7 +72,7 @@ let _tokenExtracted = false;
 
 function extractToken() {
   if (_tokenExtracted) return true;
-  
+
   const scripts = document.getElementsByTagName("script");
   for (let i = 0; i < scripts.length; i++) {
     const txt = scripts[i].textContent;
@@ -103,11 +103,14 @@ function extractToken() {
         }
       }
     }
-    if (!documentToken && txt.includes('"token":"')) {
-      const tm = txt.match(/"token":"([^"]+)"/);
-      if (tm?.[1] && /^[a-zA-Z0-9_-]+$/.test(tm[1])) {
+    // Fallback: tolerate escaped quotes (\"token\":\"...\") from double-encoded JSON,
+    // and don't require exact substring position.
+    if (!documentToken) {
+      const tm = txt.match(/\\?"token\\?"\s*:\s*\\?"([a-zA-Z0-9_-]{8,})\\?"/);
+      if (tm?.[1]) {
         documentToken = tm[1];
         _tokenExtracted = true;
+        console.log("[Scriptrail] token found via fallback pattern");
         return true;
       }
     }
@@ -117,7 +120,10 @@ function extractToken() {
 
 let _tokenRetries = 0;
 function tryExtractToken() {
-  if (documentToken || _tokenRetries > 30) return;
+  if (documentToken || _tokenRetries > 30) {
+    if (!documentToken) console.warn("[Scriptrail] tryExtractToken: gave up, no token found in page scripts");
+    return;
+  }
   if (!extractToken()) {
     _tokenRetries++;
     setTimeout(tryExtractToken, 200);
@@ -487,7 +493,12 @@ function init() {
           startPeriodicRefresh();
           return;
         }
-        if (polls < 30) setTimeout(waitForToken, 200);
+        if (polls < 30) {
+          setTimeout(waitForToken, 200);
+        } else {
+          console.warn("[Scriptrail] waitForToken: exhausted retries, notifying infobar");
+          safeSend({ type: "setData", payload: { edits: [], error: true } });
+        }
       }
       waitForToken();
     }
