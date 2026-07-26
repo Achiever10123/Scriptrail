@@ -454,6 +454,17 @@ function setupInfoBarListener() {
       // ── Full data refresh from revision API ───────────────────────────────
       if (msg?.type !== "sharedData") return;
 
+      if (msg?.payload?.error) {
+        console.warn("[Scriptrail infoBar] Data fetch failed");
+        createInfoBar();
+        const bar = document.getElementById("scriptrailInfoBar");
+        if (bar && !_barDismissed) {
+          bar.textContent = "Scriptrail: couldn't load data — try reloading the page";
+          bar.style.display = "block";
+        }
+        return;
+      }
+
       const edits = msg?.payload?.edits;
       if (!Array.isArray(edits) || edits.length === 0) {
         console.warn("[Scriptrail infoBar] No edits received");
