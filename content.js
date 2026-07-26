@@ -119,15 +119,45 @@ function extractToken() {
 }
 
 let _tokenRetries = 0;
+let _tokenObserver = null;
 function tryExtractToken() {
-  if (documentToken || _tokenRetries > 30) {
+  if (documentToken || _tokenRetries > 60) {
     if (!documentToken) console.warn("[Scriptrail] tryExtractToken: gave up, no token found in page scripts");
     return;
   }
   if (!extractToken()) {
     _tokenRetries++;
-    setTimeout(tryExtractToken, 200);
+    setTimeout(tryExtractToken, 500);
+  } else if (_tokenObserver) {
+    _tokenObserver.disconnect();
+    _tokenObserver = null;
   }
+}
+
+// Some Docs scripts (e.g. the one carrying info_params/token) are injected
+// well after document_end. Watch for new <script> tags landing and re-scan
+// immediately instead of waiting on the next poll tick.
+function _watchForTokenScripts() {
+  if (_tokenObserver || documentToken) return;
+  _tokenObserver = new MutationObserver((mutations) => {
+    if (documentToken) {
+      _tokenObserver.disconnect();
+      _tokenObserver = null;
+      return;
+    }
+    for (const mut of mutations) {
+      for (const node of mut.addedNodes) {
+        if (node.nodeName === "SCRIPT") {
+          if (extractToken()) {
+            _tokenObserver.disconnect();
+            _tokenObserver = null;
+          }
+          return;
+        }
+      }
+    }
+  });
+  _tokenObserver.observe(document.documentElement, { childList: true, subtree: true });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -476,6 +506,7 @@ function init() {
     return;
   }
   injectStylesheet();
+  _watchForTokenScripts();
   tryExtractToken();
   tryInjectButton();
   setupListeners();
@@ -493,8 +524,8 @@ function init() {
           startPeriodicRefresh();
           return;
         }
-        if (polls < 30) {
-          setTimeout(waitForToken, 200);
+        if (polls < 60) {
+          setTimeout(waitForToken, 500);
         } else {
           console.warn("[Scriptrail] waitForToken: exhausted retries, notifying infobar");
           safeSend({ type: "setData", payload: { edits: [], error: true } });
