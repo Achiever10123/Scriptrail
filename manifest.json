@@ -4,7 +4,7 @@
   "version": "1.0",
   "manifest_version": 3,
   "permissions": ["storage", "tabs"],
-  "host_permissions": ["https://docs.google.com/document/*", "https://docs.google.com/*"],
+  "host_permissions": ["https://docs.google.com/*"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icons/icon128.png"

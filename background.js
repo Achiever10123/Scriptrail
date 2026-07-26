@@ -8,6 +8,50 @@
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
+  // ── Handle fetchRevisionData request from content script ────────────────────
+  if (message.type === "fetchRevisionData") {
+    const { documentId, documentToken, baseurl } = message;
+    
+    // Validate token format
+    if (!/^[a-zA-Z0-9_-]+$/.test(documentToken)) {
+      sendResponse({ error: "Invalid token format" });
+      return true;
+    }
+
+    const tilesUrl = `${baseurl}${documentId}/revisions/tiles?id=${documentId}&start=1&showDetailedRevisions=false&token=${encodeURIComponent(documentToken)}`;
+    const loadUrl = `${baseurl}${documentId}/revisions/load?id=${documentId}&start=1&end=REPLACE_END&token=${encodeURIComponent(documentToken)}`;
+
+    // First fetch tiles to get total revisions
+    fetch(tilesUrl)
+      .then((r) => {
+        if (!r.ok) throw new Error("tiles fetch failed");
+        return r.text();
+      })
+      .then((text) => {
+        const json = JSON.parse(text.slice(")]}'".length));
+        const totalRevs = json.tileInfo[json.tileInfo.length - 1].end;
+        const userMap = json.userMap;
+
+        // Then fetch revision data
+        const finalLoadUrl = loadUrl.replace("REPLACE_END", totalRevs);
+        return fetch(finalLoadUrl)
+          .then((r) => {
+            if (!r.ok) throw new Error("revision load failed");
+            return r.text();
+          })
+          .then((text) => {
+            const changelog = JSON.parse(text.slice(")]}'".length)).changelog;
+            sendResponse({ totalRevs, userMap, changelog });
+          });
+      })
+      .catch((e) => {
+        console.error("[Scriptrail background] fetch error:", e);
+        sendResponse({ error: e.message });
+      });
+
+    return true; // Keep channel open for async response
+  }
+
  // ── 1. Open Report Tab ──────────────────────────────────────────────────────
 if (message.action === "openReportTab") {
   const params = new URLSearchParams({

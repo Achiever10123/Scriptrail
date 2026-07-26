@@ -270,33 +270,30 @@ function fetchDataForInfobar() {
   
   const tilesUrl = `${baseurl}${documentId}/revisions/tiles?id=${documentId}&start=1&showDetailedRevisions=false&token=${encodeURIComponent(documentToken)}`;
 
-  fetch(tilesUrl)
-    .then((r) => {
-      if (!r.ok) throw new Error("tiles");
-      return r.text();
-    })
-    .then((text) => {
-      const json = JSON.parse(text.slice(")]}'".length));
-      const totalRevs = json.tileInfo[json.tileInfo.length - 1].end;
-      const userMap = json.userMap;
-      if (button) button.disabled = false;
-
-      fetchRevisionData(documentId, documentToken, totalRevs)
-        .then((changelog) => {
-          const edits = generateEdits(changelog, []);
-          const tabs = [...new Set(edits.map((e) => e.tab))];
-          safeSend({ type: "setData", payload: { edits, userMap, tabs } });
-        })
-        .catch((e) => console.error("[Scriptrail] changelog:", e));
-    })
-    .catch((e) => {
-      console.error("[Scriptrail] tiles:", e);
+  // Send request to background script to handle fetch (avoids CORS issues)
+  chrome.runtime.sendMessage({
+    type: "fetchRevisionData",
+    documentId,
+    documentToken,
+    baseurl
+  }, (response) => {
+    if (chrome.runtime.lastError || !response || response.error) {
+      console.error("[Scriptrail] tiles:", response?.error || chrome.runtime.lastError);
       if (button) {
         button.textContent = "Report Unavailable";
         button.title = "You need edit access.";
         button.disabled = true;
       }
-    });
+      return;
+    }
+
+    const { totalRevs, userMap, changelog } = response;
+    if (button) button.disabled = false;
+    
+    const edits = generateEdits(changelog, []);
+    const tabs = [...new Set(edits.map((e) => e.tab))];
+    safeSend({ type: "setData", payload: { edits, userMap, tabs } });
+  });
 }
 
 async function fetchRevisionData(docId, token, totalRevs) {
