@@ -68,6 +68,14 @@ if (message.action === "openReportTab") {
       theme: message.theme
     });
   }
+
+  // ── 7. Broadcast infobar visibility update to all tabs ──────────────────────
+  if (message.action === "infobarUpdate") {
+    _broadcastToDocs({
+      type: "infobarUpdate",
+      infobarValue: message.infobarValue
+    });
+  }
 });
 
 // ── Helper: broadcast a message to all open Google Docs tabs ──────────────────
