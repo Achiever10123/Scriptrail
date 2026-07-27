@@ -92,6 +92,69 @@ body {
   color: var(--text-primary);
 }
 
+/* Settings Link Row */
+.settings-link-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.settings-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent-color);
+  text-decoration: none;
+  padding: 8px 16px;
+  border: 1px solid var(--accent-color);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.settings-link:hover {
+  background: var(--accent-bg);
+}
+
+/* Setting Row (for settings page) */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.setting-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.language-select {
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-width: 120px;
+}
+
+/* Back Link */
+.back-link {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 8px;
+  transition: color 0.2s ease;
+}
+
+.back-link:hover {
+  color: var(--accent-color);
+}
+
 /* Theme toggle button */
 .theme-toggle-btn {
   background: var(--bg-secondary);
