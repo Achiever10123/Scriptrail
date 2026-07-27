@@ -1,5 +1,6 @@
 // ─── infoBar.js ───────────────────────────────────────────────────────────────
 // Shows a thin stats bar: Writing Time | Copied Passages | Sessions
+// Note: utils.js must be loaded before this file (see manifest.json)
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -22,18 +23,16 @@ const _documentId = _docIdMatch ? _docIdMatch[1] : "";
 const _storageKey = `scriptrail_writingTime_${_documentId}`;
 
 function _saveAccumulatedTime() {
-  if (!_ctxOk() || !_documentId) return;
+  if (!isCtxValid() || !_documentId) return;
   const currentMs = _getLiveWritingTimeMs();
-  try {
-    chrome.storage.local.set({ [_storageKey]: currentMs });
-  } catch (_) {}
+  safeStorageSet({ [_storageKey]: currentMs });
 }
 
 function _loadSavedTime() {
-  if (!_ctxOk() || !_documentId) return;
+  if (!isCtxValid() || !_documentId) return;
   try {
     chrome.storage.local.get([_storageKey], (res) => {
-      if (!_ctxOk()) return;
+      if (!isCtxValid()) return;
       const saved = res[_storageKey];
       if (saved && typeof saved === "number" && saved > _baseWritingTimeMs) {
         _baseWritingTimeMs = saved;
@@ -44,19 +43,13 @@ function _loadSavedTime() {
         );
       }
     });
-  } catch (_) {}
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// CONTEXT GUARD
-// ══════════════════════════════════════════════════════════════════════════════
-function _ctxOk() {
-  try {
-    return typeof chrome !== "undefined" && !!chrome.runtime?.id;
-  } catch (_) {
-    return false;
+  } catch (e) {
+    logError("_loadSavedTime", e);
   }
 }
+
+// Alias for compatibility with utils.js naming
+const _ctxOk = isCtxValid;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CLOSE STATE  — persists across data refreshes so bar stays hidden
@@ -210,9 +203,7 @@ function updateInfoBar(writingTime, copiedCount, sessionCount) {
 function _renderBarContent(bar, writingTime, copiedCount, sessionCount) {
   // Use textContent instead of innerHTML to prevent XSS
   // Clear bar safely using DOM methods
-  while (bar.firstChild) {
-    bar.removeChild(bar.firstChild);
-  }
+  clearElement(bar);
   
   const closeBtn = document.createElement('button');
   closeBtn.id = 'scriptrailInfoBarClose';
@@ -240,7 +231,8 @@ function _renderBarContent(bar, writingTime, copiedCount, sessionCount) {
     
     const valueDiv = document.createElement('div');
     valueDiv.className = 'sr-section-value';
-    valueDiv.textContent = section.value;
+    // Sanitize display values to prevent XSS
+    valueDiv.textContent = sanitizeText(section.value, 50);
     
     sectionDiv.appendChild(labelDiv);
     sectionDiv.appendChild(valueDiv);
@@ -502,7 +494,6 @@ function setupInfoBarListener() {
           );
         } else {
           // Data is stale; do NOT reset _lastFetchTime or it will revert the timer.
-          // Just continue with the live tick as-is.
           console.log(
             "[Scriptrail infoBar] Stale data (calc:",
             formatWritingTime(writingTimeMs),
@@ -512,20 +503,16 @@ function setupInfoBarListener() {
           );
         }
 
-        // Get copied count with timeout protection
+        // Get copied count with timeout protection using utility function
         let copiedCount = "N/A";
         try {
-          copiedCount = await Promise.race([
+          copiedCount = await withTimeout(
             getCopiedCount(edits),
-            new Promise((_, reject) =>
-              setTimeout(
-                () => reject(new Error("getCopiedCount timeout")),
-                4500,
-              ),
-            ),
-          ]);
+            SCRIPTRAIL_CONFIG.COPY_DETECTION_TIMEOUT_MS,
+            "Copy detection"
+          );
         } catch (err) {
-          console.warn("[Scriptrail infoBar] getCopiedCount error:", err);
+          logError("getCopiedCount", err);
           copiedCount = "N/A";
         }
 
@@ -538,13 +525,13 @@ function setupInfoBarListener() {
         // Start the 1-second tick if not already running
         _startLiveTick();
       } catch (err) {
-        console.error("[Scriptrail infoBar] Error processing data:", err);
+        logError("infoBar data processing", err);
         // Fallback: show at least the bar with placeholder values
         updateInfoBar("0 sec", "N/A", "0");
       }
     });
   } catch (err) {
-    console.error("[Scriptrail infoBar] Listener setup failed:", err);
+    logError("infoBar listener setup", err);
   }
 }
 

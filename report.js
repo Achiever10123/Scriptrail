@@ -2,6 +2,7 @@
 // Runs inside report.html (the full-page report tab).
 // Mirrors Aidify's data-page logic with our own variable names and structure.
 // All data comes from the Google Docs revision API — no server needed.
+// Note: utils.js must be loaded before this file (see report.html)
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 0.  GLOBALS
@@ -11,6 +12,9 @@ let globalUsers = {}; // { userId: { name, color } }
 let globalTabs = []; // ordered list of tab keys found in edits
 let tabsData = {}; // { tabKey: "Tab label" } — from localStorage
 let firstContent = ""; // document content at revision 1
+
+// Alias for compatibility with utils.js naming  
+const _ctxOk = typeof isCtxValid === 'function' ? isCtxValid : () => true;
 
 // Chart instances (kept so we can destroy before redrawing)
 let chartDate, chartTime, chartTimePerDay, chartGroupPie;
@@ -191,10 +195,7 @@ function buildTabsPanel(edits, redraw = true) {
   globalTabs = tabKeys;
 
   const container = document.getElementById("tabsContainer");
-  // Clear container safely using DOM methods
-  while (container.firstChild) {
-    container.removeChild(container.firstChild);
-  }
+  clearElement(container);
 
   tabKeys.forEach((key, i) => {
     const div = document.createElement("div");
@@ -263,10 +264,7 @@ function renderDocStats(edits, savedTimeMs = 0) {
   
   // Build statTime safely with textContent to prevent XSS
   const statTimeEl = document.getElementById("statTime");
-  // Clear element safely using DOM methods
-  while (statTimeEl.firstChild) {
-    statTimeEl.removeChild(statTimeEl.firstChild);
-  }
+  clearElement(statTimeEl);
   const tooltipWrap1 = document.createElement('span');
   tooltipWrap1.className = 'tooltip-wrap';
   tooltipWrap1.style.cursor = 'default';
@@ -280,10 +278,7 @@ function renderDocStats(edits, savedTimeMs = 0) {
   
   // Build statEdits safely with textContent to prevent XSS
   const statEditsEl = document.getElementById("statEdits");
-  // Clear element safely using DOM methods
-  while (statEditsEl.firstChild) {
-    statEditsEl.removeChild(statEditsEl.firstChild);
-  }
+  clearElement(statEditsEl);
   const tooltipWrap2 = document.createElement('span');
   tooltipWrap2.className = 'tooltip-wrap';
   tooltipWrap2.style.cursor = 'default';
@@ -346,21 +341,15 @@ function renderSessionsSection(edits) {
   const count = _sessions.length;
 
   document.getElementById("sessionCount").textContent = `(${count})`;
-  // Clear sessionCards safely using DOM methods
   const sessionCardsEl = document.getElementById("sessionCards");
-  while (sessionCardsEl.firstChild) {
-    sessionCardsEl.removeChild(sessionCardsEl.firstChild);
-  }
+  clearElement(sessionCardsEl);
 
   const seeAllBtn = document.getElementById("showAllSessionsBtn");
   const hideBtn = document.getElementById("hideSessionsBtn");
 
   function showSessions(from, to) {
     const container = document.getElementById("sessionCards");
-    // Clear container safely using DOM methods
-    while (container.firstChild) {
-      container.removeChild(container.firstChild);
-    }
+    clearElement(container);
     for (let i = from; i < to; i++) {
       const s = _sessions[i];
       const div = document.createElement("div");
@@ -492,10 +481,7 @@ function _renderCopyCards(items, allEdits) {
   const hideBtn = document.getElementById("hideCopyBtn");
 
   function render(from, to) {
-    // Clear container safely using DOM methods
-    while (container.firstChild) {
-      container.removeChild(container.firstChild);
-    }
+    clearElement(container);
     for (let i = from; i < to; i++) {
       const item = items[i];
       const card = document.createElement("div");
@@ -898,8 +884,7 @@ function renderEditInPlayback(edits, index, initialContent, highlightUserId) {
   // Build HTML safely using DOM methods instead of innerHTML
   const area = document.getElementById("playbackArea");
   // Clear area safely using DOM methods
-  while (area.firstChild) {
-    area.removeChild(area.firstChild);
+  clearElement(area); // was: while loop
   }
   
   if (edit.ty === "is") {
@@ -1073,8 +1058,7 @@ function renderGroupBreakdown(allEdits, initialContent, users) {
   // Build coloured HTML safely using DOM methods
   const playbackArea = document.getElementById("playbackArea");
   // Clear playbackArea safely using DOM methods
-  while (playbackArea.firstChild) {
-    playbackArea.removeChild(playbackArea.firstChild);
+  clearElement(playbackArea);
   }
   
   let curUid = authors[0];
@@ -1111,8 +1095,7 @@ function renderGroupBreakdown(allEdits, initialContent, users) {
   // Legend
   const legend = document.getElementById("groupBreakdownColors");
   // Clear legend safely using DOM methods
-  while (legend.firstChild) {
-    legend.removeChild(legend.firstChild);
+  clearElement(legend);
   }
   Object.entries(users).forEach(([uid, info]) => {
     const tag = document.createElement("span");

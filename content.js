@@ -1,53 +1,14 @@
 // ─── content.js ───────────────────────────────────────────────────────────────
 // Injected into every Google Docs page.
+// Note: utils.js must be loaded before this file (see manifest.json)
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CONTEXT GUARD
+// IMPORTS FROM utils.js (available globally when loaded via manifest)
 // ══════════════════════════════════════════════════════════════════════════════
-function isCtxValid() {
-  try {
-    return typeof chrome !== "undefined" && !!chrome.runtime?.id;
-  } catch (_) {
-    return false;
-  }
-}
-
-function safeSend(msg) {
-  if (!isCtxValid()) return;
-  try {
-    chrome.runtime.sendMessage(msg, () => {
-      if (chrome.runtime.lastError) {
-        /* swallow */
-      }
-    });
-  } catch (_) {}
-}
-
-function safeStorageGet(keys, callback) {
-  if (!isCtxValid()) return;
-  try {
-    chrome.storage.sync.get(keys, (res) => {
-      if (!isCtxValid() || chrome.runtime.lastError) return;
-      callback(res);
-    });
-  } catch (_) {}
-}
-
-function safeStorageSet(items, callback) {
-  if (!isCtxValid()) return;
-  try {
-    chrome.storage.local.set(items, () => {
-      if (!isCtxValid() || chrome.runtime.lastError) return;
-      if (callback) callback();
-    });
-  } catch (_) {}
-}
-
-// Simple HTML escape to prevent XSS
-function _escHtml(str) {
-  if (typeof str !== 'string') return '';
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
+// These functions are provided by utils.js:
+// - isCtxValid(), safeSend(), safeStorageGet(), safeStorageSet()
+// - isValidToken(), escapeHtml(), SCRIPTRAIL_CONFIG
+// - formatWritingTime(), logError(), withTimeout()
 
 // ══════════════════════════════════════════════════════════════════════════════
 // PAGE DATA  (document ID, base URL, auth token)
@@ -117,13 +78,13 @@ function extractToken() {
 let _tokenRetries = 0;
 let _tokenObserver = null;
 function tryExtractToken() {
-  if (documentToken || _tokenRetries > 60) {
-    if (!documentToken) console.warn("[Scriptrail] tryExtractToken: gave up, no token found in page scripts");
+  if (documentToken || _tokenRetries > SCRIPTRAIL_CONFIG.TOKEN_RETRY_LIMIT) {
+    if (!documentToken) logError("tryExtractToken", "gave up, no token found in page scripts");
     return;
   }
   if (!extractToken()) {
     _tokenRetries++;
-    setTimeout(tryExtractToken, 500);
+    setTimeout(tryExtractToken, SCRIPTRAIL_CONFIG.POLL_INTERVAL_MS / 10);
   } else if (_tokenObserver) {
     _tokenObserver.disconnect();
     _tokenObserver = null;
@@ -252,7 +213,7 @@ function injectButton() {
 
 let _btnRetries = 0;
 function tryInjectButton() {
-  if (_btnRetries > 40) return;
+  if (_btnRetries > SCRIPTRAIL_CONFIG.BUTTON_RETRY_LIMIT) return;
   if (!injectButton()) {
     _btnRetries++;
     setTimeout(tryInjectButton, 300);
@@ -294,17 +255,18 @@ function handleButtonClick() {
 function fetchDataForInfobar() {
   if (!documentId || !documentToken) return;
   
-  // Basic sanity check before use (no whitespace/quotes, reasonable length)
-  if (!documentToken || documentToken.length < 8 || /["\s]/.test(documentToken)) {
-    console.error("[Scriptrail] Invalid token format:", documentToken);
+  // CRITICAL: Validate token format to prevent injection attacks
+  if (!isValidToken(documentToken)) {
+    logError("fetchDataForInfobar", `Invalid token format (length: ${documentToken?.length})`);
+    safeSend({ type: "setData", payload: { edits: [], error: true, message: "Invalid token" } });
     return;
   }
   
   const tilesUrl = `${baseurl}${documentId}/revisions/tiles?id=${documentId}&start=1&showDetailedRevisions=false&token=${encodeURIComponent(documentToken)}`;
 
-  fetch(tilesUrl)
+  withTimeout(fetch(tilesUrl), SCRIPTRAIL_CONFIG.FETCH_TIMEOUT_MS, "Tiles fetch")
     .then((r) => {
-      if (!r.ok) throw new Error("tiles");
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.text();
     })
     .then((text) => {
@@ -313,36 +275,32 @@ function fetchDataForInfobar() {
       const userMap = json.userMap;
       if (button) button.disabled = false;
 
-      fetchRevisionData(documentId, documentToken, totalRevs)
+      return fetchRevisionData(documentId, documentToken, totalRevs)
         .then((changelog) => {
           const edits = generateEdits(changelog, []);
-          const tabs = [...new Set(edits.map((e) => e.tab))];
+          const tabs = uniqueValues(edits.map((e) => e.tab));
           safeSend({ type: "setData", payload: { edits, userMap, tabs } });
-        })
-        .catch((e) => {
-          console.error("[Scriptrail] changelog:", e);
-          safeSend({ type: "setData", payload: { edits: [], error: true } });
         });
     })
     .catch((e) => {
-      console.error("[Scriptrail] tiles:", e);
+      logError("fetchDataForInfobar", e);
       if (button) {
         button.textContent = "Report Unavailable";
-        button.title = "You need edit access.";
+        button.title = "You need edit access or the token is invalid.";
         button.disabled = true;
       }
-      safeSend({ type: "setData", payload: { edits: [], error: true } });
+      safeSend({ type: "setData", payload: { edits: [], error: true, message: e.message } });
     });
 }
 
 async function fetchRevisionData(docId, token, totalRevs) {
-  // Basic sanity check before use
-  if (!token || token.length < 8 || /["\s]/.test(token)) {
+  // CRITICAL: Validate token before use
+  if (!isValidToken(token)) {
     throw new Error("Invalid token format");
   }
   const url = `${baseurl}${docId}/revisions/load?id=${docId}&start=1&end=${totalRevs}&token=${encodeURIComponent(token)}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("revision load failed");
+  const res = await withTimeout(fetch(url), SCRIPTRAIL_CONFIG.FETCH_TIMEOUT_MS, "Revision fetch");
+  if (!res.ok) throw new Error(`HTTP ${res.status}: revision load failed`);
   return JSON.parse((await res.text()).slice(")]}'".length)).changelog;
 }
 
@@ -422,40 +380,46 @@ document.addEventListener("input", _triggerRefreshDebounced);
 document.addEventListener("compositionend", _triggerRefreshDebounced);
 
 // ── Periodic refresh (real-time updates for copy detection etc.) ──────────
+let _refreshIntervalId = null;
 function startPeriodicRefresh() {
-  if (!isCtxValid()) return;
-  const intervalId = setInterval(() => {
+  if (!isCtxValid() || _refreshIntervalId) return;
+  _refreshIntervalId = setInterval(() => {
     if (!isCtxValid()) {
-      clearInterval(intervalId);
+      clearInterval(_refreshIntervalId);
+      _refreshIntervalId = null;
       const bar = document.getElementById("scriptrailInfoBar");
       if (bar) {
-        bar.textContent = "Scriptrail: connection lost – reloading page…";
+        setTextContent(bar, "Scriptrail: connection lost – reloading page…");
         bar.style.display = "block";
       }
       setTimeout(() => location.reload(), 1500);
       return;
     }
     if (documentToken) fetchDataForInfobar();
-  }, 5000); // increased frequency to 5s for real-time updates
+  }, SCRIPTRAIL_CONFIG.POLL_INTERVAL_MS);
 }
+
+// Cleanup on page unload to prevent memory leaks
+window.addEventListener('beforeunload', () => {
+  if (_refreshIntervalId) {
+    clearInterval(_refreshIntervalId);
+    _refreshIntervalId = null;
+  }
+  if (_tokenObserver) {
+    _tokenObserver.disconnect();
+    _tokenObserver = null;
+  }
+});
 
 // ══════════════════════════════════════════════════════════════════════════════
 // BROADCAST WRITING TIME to infobar every second
 // ══════════════════════════════════════════════════════════════════════════════
 function _broadcastWritingTime() {
   if (!isCtxValid()) return;
-  try {
-    chrome.runtime.sendMessage(
-      {
-        type: "writingTimeTick",
-        writingTime: _formatWritingTime(_totalWritingMs()),
-      },
-      () => {
-        if (chrome.runtime.lastError) {
-        }
-      },
-    );
-  } catch (_) {}
+  safeSend({
+    type: "writingTimeTick",
+    writingTime: formatWritingTime(_totalWritingMs()),
+  });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -463,34 +427,29 @@ function _broadcastWritingTime() {
 // ══════════════════════════════════════════════════════════════════════════════
 function updateUIFromStorage() {
   if (!isCtxValid()) return;
-  try {
-    safeStorageGet(["toggleState"], (res) => {
-      if (!isCtxValid()) return;
-      const show = res?.toggleState !== false;
-      if (button) button.style.display = show ? "inline-block" : "none";
-    });
-  } catch (_) {}
+  safeStorageGet(["toggleState"], (res) => {
+    if (!isCtxValid()) return;
+    const show = res?.toggleState !== false;
+    if (button) button.style.display = show ? "inline-block" : "none";
+  });
 }
 
 function setupListeners() {
   if (!isCtxValid()) return;
-  try {
-    chrome.runtime.onMessage.addListener((msg) => {
-      if (!isCtxValid()) return;
-      if (msg?.type === "toggle") updateUIFromStorage();
-      // Handle theme updates from popup
-      if (msg?.type === "themeUpdate" && msg.theme) {
-        document.documentElement.setAttribute("data-theme", msg.theme);
-      }
-      // NOTE: sharedData is handled entirely in infoBar.js
-    });
-  } catch (_) {}
-  try {
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (!isCtxValid()) return;
-      if (area === "sync" && changes?.toggleState) updateUIFromStorage();
-    });
-  } catch (_) {}
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (!isCtxValid()) return;
+    if (msg?.type === "toggle") updateUIFromStorage();
+    // Handle theme updates from popup
+    if (msg?.type === "themeUpdate" && msg.theme) {
+      document.documentElement.setAttribute("data-theme", msg.theme);
+    }
+    // NOTE: sharedData is handled entirely in infoBar.js
+  });
+  
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (!isCtxValid()) return;
+    if (area === "sync" && changes?.toggleState) updateUIFromStorage();
+  });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -498,7 +457,7 @@ function setupListeners() {
 // ══════════════════════════════════════════════════════════════════════════════
 function init() {
   if (!isCtxValid()) {
-    setTimeout(init, 500);
+    setTimeout(init, SCRIPTRAIL_CONFIG.POLL_INTERVAL_MS / 10);
     return;
   }
   injectStylesheet();
@@ -520,11 +479,11 @@ function init() {
           startPeriodicRefresh();
           return;
         }
-        if (polls < 60) {
-          setTimeout(waitForToken, 500);
+        if (polls < SCRIPTRAIL_CONFIG.TOKEN_RETRY_LIMIT) {
+          setTimeout(waitForToken, SCRIPTRAIL_CONFIG.POLL_INTERVAL_MS / 10);
         } else {
-          console.warn("[Scriptrail] waitForToken: exhausted retries, notifying infobar");
-          safeSend({ type: "setData", payload: { edits: [], error: true } });
+          logError("waitForToken", "exhausted retries, notifying infobar");
+          safeSend({ type: "setData", payload: { edits: [], error: true, message: "Token not found" } });
         }
       }
       waitForToken();
