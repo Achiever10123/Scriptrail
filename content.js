@@ -474,28 +474,25 @@ function init() {
   setupListeners();
   updateUIFromStorage();
 
-  safeStorageGet(["toggleState"], (res) => {
+  // Data fetching drives the infobar and must run regardless of the
+  // "show/hide button" toggle — that toggle only controls button visibility.
+  let polls = 0;
+  function waitForToken() {
     if (!isCtxValid()) return;
-    if (res?.toggleState !== false) {
-      let polls = 0;
-      function waitForToken() {
-        if (!isCtxValid()) return;
-        polls++;
-        if (documentToken) {
-          fetchDataForInfobar();
-          startPeriodicRefresh();
-          return;
-        }
-        if (polls < SCRIPTRAIL_CONFIG.TOKEN_RETRY_LIMIT) {
-          setTimeout(waitForToken, SCRIPTRAIL_CONFIG.POLL_INTERVAL_MS / 10);
-        } else {
-          logError("waitForToken", "exhausted retries, notifying infobar");
-          safeSend({ type: "setData", payload: { edits: [], error: true, message: "Token not found" } });
-        }
-      }
-      waitForToken();
+    polls++;
+    if (documentToken) {
+      fetchDataForInfobar();
+      startPeriodicRefresh();
+      return;
     }
-  });
+    if (polls < SCRIPTRAIL_CONFIG.TOKEN_RETRY_LIMIT) {
+      setTimeout(waitForToken, SCRIPTRAIL_CONFIG.POLL_INTERVAL_MS / 10);
+    } else {
+      logError("waitForToken", "exhausted retries, notifying infobar");
+      safeSend({ type: "setData", payload: { edits: [], error: true, message: "Token not found" } });
+    }
+  }
+  waitForToken();
 }
 
 init();
