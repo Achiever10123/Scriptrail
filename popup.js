@@ -3,13 +3,15 @@
 // - Reads and writes the "toggleState" from chrome.storage.sync
 // - Notifies all Google Docs tabs when the toggle changes
 // - Handles dark mode theme toggle
+// - Handles infobar visibility toggle
 
 document.addEventListener("DOMContentLoaded", () => {
   const checkbox = document.getElementById("toggleCheckbox");
+  const infobarCheckbox = document.getElementById("infobarCheckbox");
   const themeToggleBtn = document.getElementById("themeToggleBtn");
 
   // ── Load saved toggle state ────────────────────────────────────────────────
-  chrome.storage.sync.get(["toggleState", "theme"], (res) => {
+  chrome.storage.sync.get(["toggleState", "theme", "infobarEnabled"], (res) => {
     // Default to true if never set
     const state = res.toggleState !== false;
     checkbox.checked = state;
@@ -22,6 +24,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // Apply saved theme
     const theme = res.theme || 'light';
     applyTheme(theme);
+
+    // Load infobar visibility setting (default to true)
+    const infobarEnabled = res.infobarEnabled !== false;
+    if (infobarCheckbox) {
+      infobarCheckbox.checked = infobarEnabled;
+    }
   });
 
   // ── Persist & broadcast toggle changes ────────────────────────────────────
@@ -33,6 +41,18 @@ document.addEventListener("DOMContentLoaded", () => {
       () => { if (chrome.runtime.lastError) { /* popup may close first */ } }
     );
   });
+
+  // ── Infobar toggle functionality ──────────────────────────────────────────
+  if (infobarCheckbox) {
+    infobarCheckbox.addEventListener("change", () => {
+      const newValue = infobarCheckbox.checked;
+      chrome.storage.sync.set({ infobarEnabled: newValue });
+      chrome.runtime.sendMessage(
+        { action: "infobarUpdate", infobarValue: newValue },
+        () => { if (chrome.runtime.lastError) { /* popup may close first */ } }
+      );
+    });
+  }
 
   // ── Theme toggle functionality ─────────────────────────────────────────────
   if (themeToggleBtn) {
