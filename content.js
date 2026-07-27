@@ -77,40 +77,36 @@ function extractToken() {
   for (let i = 0; i < scripts.length; i++) {
     const txt = scripts[i].textContent;
     if (!txt) continue;
-    if (txt.includes("_docs_flag_initialData")) {
-      const m = txt.match(/_docs_flag_initialData\s*=\s*(.*?);/);
-      if (m) {
-        const raw = m[1];
-        const idx = raw.indexOf('"info_params"');
-        if (idx !== -1) {
-          const sub = raw.substring(idx);
-          const end = sub.indexOf("}");
-          if (end !== -1) {
-            let frag = sub.substring(0, end + 1);
-            const st = frag.indexOf('{"token"');
-            if (st !== -1) {
-              frag = frag.substring(st);
-              try {
-                const p = JSON.parse(frag);
-                if (p.token && typeof p.token === 'string' && /^[a-zA-Z0-9_-]+$/.test(p.token)) {
-                  documentToken = p.token;
-                  _tokenExtracted = true;
-                  return true;
-                }
-              } catch (_) {}
-            }
-          }
-        }
+
+    // Preferred: token nested under info_params, tolerant of any token charset.
+    if (!documentToken) {
+      const ipMatch = txt.match(/"info_params"\s*:\s*\{[^{}]*?"token"\s*:\s*"([^"\\]+)"/);
+      if (ipMatch?.[1]) {
+        documentToken = ipMatch[1];
+        _tokenExtracted = true;
+        console.log("[Scriptrail] token found via info_params pattern");
+        return true;
       }
     }
-    // Fallback: tolerate escaped quotes (\"token\":\"...\") from double-encoded JSON,
-    // and don't require exact substring position.
+
+    // Fallback 1: plain unescaped "token":"...".
     if (!documentToken) {
-      const tm = txt.match(/\\?"token\\?"\s*:\s*\\?"([a-zA-Z0-9_-]{8,})\\?"/);
+      const tm = txt.match(/"token"\s*:\s*"([^"\\]+)"/);
       if (tm?.[1]) {
         documentToken = tm[1];
         _tokenExtracted = true;
-        console.log("[Scriptrail] token found via fallback pattern");
+        console.log("[Scriptrail] token found via plain fallback pattern");
+        return true;
+      }
+    }
+
+    // Fallback 2: escaped quotes from double-encoded JSON (\"token\":\"...\").
+    if (!documentToken) {
+      const tm2 = txt.match(/\\"token\\"\s*:\s*\\"([^"\\]+)\\"/);
+      if (tm2?.[1]) {
+        documentToken = tm2[1];
+        _tokenExtracted = true;
+        console.log("[Scriptrail] token found via escaped fallback pattern");
         return true;
       }
     }
@@ -298,9 +294,9 @@ function handleButtonClick() {
 function fetchDataForInfobar() {
   if (!documentId || !documentToken) return;
   
-  // Validate token format before use
-  if (!/^[a-zA-Z0-9_-]+$/.test(documentToken)) {
-    console.error("[Scriptrail] Invalid token format");
+  // Basic sanity check before use (no whitespace/quotes, reasonable length)
+  if (!documentToken || documentToken.length < 8 || /["\s]/.test(documentToken)) {
+    console.error("[Scriptrail] Invalid token format:", documentToken);
     return;
   }
   
@@ -340,8 +336,8 @@ function fetchDataForInfobar() {
 }
 
 async function fetchRevisionData(docId, token, totalRevs) {
-  // Validate token format
-  if (!/^[a-zA-Z0-9_-]+$/.test(token)) {
+  // Basic sanity check before use
+  if (!token || token.length < 8 || /["\s]/.test(token)) {
     throw new Error("Invalid token format");
   }
   const url = `${baseurl}${docId}/revisions/load?id=${docId}&start=1&end=${totalRevs}&token=${encodeURIComponent(token)}`;
