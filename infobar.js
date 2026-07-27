@@ -439,6 +439,16 @@ function setupInfoBarListener() {
         return;
       }
 
+      // Handle infobar visibility toggle from popup
+      if (msg?.type === "infobarUpdate") {
+        if (msg.infobarValue === false) {
+          _hideInfoBar();
+        } else {
+          _showInfoBar();
+        }
+        return;
+      }
+
       // writingTimeTick is still sent by content.js every second but we no
       // longer use it — the live tick interval does the job from revision data.
       if (msg?.type === "writingTimeTick") return;
@@ -536,6 +546,14 @@ function setupInfoBarListener() {
 }
 
 setupInfoBarListener();
+
+// Check infobar visibility setting on load
+chrome.storage.sync.get(["infobarEnabled"], (res) => {
+  const infobarEnabled = res.infobarEnabled !== false;
+  if (!infobarEnabled) {
+    _hideInfoBar();
+  }
+});
 
 // Show the bar immediately on load so the user sees "loading…"
 // _maybeShowBar() will keep it visible once data arrives.
