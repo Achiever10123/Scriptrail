@@ -448,7 +448,14 @@ function setupListeners() {
   
   chrome.storage.onChanged.addListener((changes, area) => {
     if (!isCtxValid()) return;
-    if (area === "sync" && changes?.toggleState) updateUIFromStorage();
+    if (area === "sync") {
+      if (changes?.toggleState) updateUIFromStorage();
+      // Listen for infobarEnabled changes and reload the infobar script accordingly
+      if (changes?.infobarEnabled) {
+        const infobarEnabled = changes.infobarEnabled.newValue !== false;
+        console.log("[Scriptrail content] infobarEnabled changed:", infobarEnabled);
+      }
+    }
   });
 }
 
