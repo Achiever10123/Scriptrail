@@ -199,7 +199,7 @@ function injectButton() {
   const buttonEl = document.createElement("button");
   buttonEl.id = "scriptrailBtn";
   buttonEl.disabled = true;
-  buttonEl.textContent = "View Report";
+  buttonEl.textContent = t("viewReport");
   wrapper.appendChild(buttonEl);
   toolbar.appendChild(wrapper);
 
@@ -285,7 +285,7 @@ function fetchDataForInfobar() {
     .catch((e) => {
       logError("fetchDataForInfobar", e);
       if (button) {
-        button.textContent = "Report Unavailable";
+        button.textContent = t("reportUnavailable");
         button.title = "You need edit access or the token is invalid.";
         button.disabled = true;
       }
@@ -443,6 +443,11 @@ function setupListeners() {
     if (msg?.type === "themeUpdate" && msg.theme) {
       document.documentElement.setAttribute("data-theme", msg.theme);
     }
+    // Handle language changes from settings
+    if (msg?.type === "languageUpdate" && msg.language) {
+      setScriptrailLanguage(msg.language);
+      if (button && !button.disabled) button.textContent = t("viewReport");
+    }
     // NOTE: sharedData is handled entirely in infoBar.js
   });
   
@@ -468,9 +473,11 @@ function init() {
     return;
   }
   injectStylesheet();
+  loadScriptrailLanguage(() => {
+    tryInjectButton();
+  });
   _watchForTokenScripts();
   tryExtractToken();
-  tryInjectButton();
   setupListeners();
   updateUIFromStorage();
 
