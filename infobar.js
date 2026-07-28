@@ -57,6 +57,28 @@ const _ctxOk = isCtxValid;
 let _barDismissed = false; // user clicked ×
 let _lastCopiedCount = 0;
 let _lastSessionCount = 0;
+// Tracks what's currently shown so a language change can re-render it correctly
+// without needing fresh data: "loading" | "calculating" | "error" | "data"
+let _lastRenderState = "loading";
+
+// Re-renders whatever is currently on screen in the newly-selected language.
+function _applyLanguage() {
+  const bar = document.getElementById("scriptrailInfoBar");
+  if (!bar) return;
+  switch (_lastRenderState) {
+    case "data":
+      updateInfoBar(formatWritingTime(_getLiveWritingTimeMs()), _lastCopiedCount, _lastSessionCount);
+      break;
+    case "calculating":
+      bar.textContent = t("calculating");
+      break;
+    case "error":
+      bar.textContent = t("loadError");
+      break;
+    default:
+      bar.textContent = t("loading");
+  }
+}
 
 // ── Live-tick state (mirrors report.js calcSessions algorithm exactly) ────────
 // After each API refresh we store:
@@ -134,43 +156,19 @@ function createInfoBar() {
       width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
     }
     #scriptrailInfoBarClose:hover { color: #2d6a2d; background: rgba(0,0,0,0.08); }
-    #scriptrailToggleIcon {
-      display: flex; align-items: center; justify-content: center;
-      background: #f0f9f0; border: 1px solid #a5d6a7;
-      border-radius: 4px; padding: 6px 12px; font-size: 12px;
-      cursor: pointer; color: #2d6a2d; 
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-weight: 500;
-    }
-    #scriptrailToggleIcon:hover { background: #e0f5e0; }
   `;
   document.head.appendChild(style);
 
   const panel = document.createElement("div");
   panel.id = "scriptrailInfoBar";
-  panel.textContent = "Scriptrail: loading…";
+  panel.textContent = t("loading");
   document.body.appendChild(panel);
-
-  _createToggleIcon();
-}
-
-function _createToggleIcon() {
-  const sideBar = document.getElementById("docs-side-toolbar");
-  if (!sideBar || document.getElementById("scriptrailToggleIcon")) return;
-  const icon = document.createElement("div");
-  icon.id = "scriptrailToggleIcon";
-  icon.textContent = "Stats";
-  icon.title = "Show Scriptrail Stats";
-  icon.addEventListener("click", _showInfoBar);
-  sideBar.appendChild(icon);
 }
 
 function _showInfoBar() {
   _barDismissed = false;
   const bar = document.getElementById("scriptrailInfoBar");
   if (bar) bar.style.display = "block";
-  const icon = document.getElementById("scriptrailToggleIcon");
-  if (icon) icon.remove();
   _clickNavClose();
 }
 
@@ -178,7 +176,6 @@ function _hideInfoBar() {
   _barDismissed = true;
   const bar = document.getElementById("scriptrailInfoBar");
   if (bar) bar.style.display = "none";
-  _createToggleIcon();
   _clickNavClose();
 }
 
@@ -216,9 +213,9 @@ function _renderBarContent(bar, writingTime, copiedCount, sessionCount) {
   contentDiv.style.marginTop = '24px';
   
   const sections = [
-    { label: '✍️ Writing Time', value: String(writingTime) },
-    { label: '📋 Copied Passages', value: String(copiedCount) },
-    { label: '🕐 Sessions', value: String(sessionCount) }
+    { label: t('writingTime'), value: String(writingTime) },
+    { label: t('copiedPassages'), value: String(copiedCount) },
+    { label: t('sessions'), value: String(sessionCount) }
   ];
   
   sections.forEach(section => {
@@ -439,6 +436,19 @@ function setupInfoBarListener() {
         return;
       }
 
+      // Handle language changes from settings
+      if (msg?.type === "languageUpdate") {
+        setScriptrailLanguage(msg.language);
+        _applyLanguage();
+        return;
+      }
+
+      // Handle infobar panel-width changes from settings
+      if (msg?.type === "panelWidthUpdate" && msg.width) {
+        setInfoBarWidth(msg.width);
+        return;
+      }
+
       // Handle infobar visibility toggle from popup
       if (msg?.type === "infobarUpdate") {
         if (msg.infobarValue === false) {
@@ -458,10 +468,11 @@ function setupInfoBarListener() {
 
       if (msg?.payload?.error) {
         console.warn("[Scriptrail infoBar] Data fetch failed");
+        _lastRenderState = "error";
         createInfoBar();
         const bar = document.getElementById("scriptrailInfoBar");
         if (bar && !_barDismissed) {
-          bar.textContent = "Scriptrail: couldn't load data — try reloading the page";
+          bar.textContent = t("loadError");
           bar.style.display = "block";
         }
         return;
@@ -477,10 +488,11 @@ function setupInfoBarListener() {
       _loadSavedTime();
 
       if (!_barDismissed) {
+        _lastRenderState = "calculating";
         createInfoBar();
         const bar = document.getElementById("scriptrailInfoBar");
         if (bar) {
-          bar.textContent = "Scriptrail: calculating…";
+          bar.textContent = t("calculating");
           bar.style.display = "block";
         }
       }
@@ -530,6 +542,7 @@ function setupInfoBarListener() {
 
         // Display current live value (already extends the open session if active)
         const writingTimeFormatted = formatWritingTime(_getLiveWritingTimeMs());
+        _lastRenderState = "data";
         updateInfoBar(writingTimeFormatted, copiedCount, sessionCount);
 
         // Start the 1-second tick if not already running
@@ -547,16 +560,18 @@ function setupInfoBarListener() {
 
 setupInfoBarListener();
 
-// Check infobar visibility setting on load
-chrome.storage.sync.get(["infobarEnabled"], (res) => {
-  const infobarEnabled = res.infobarEnabled !== false;
-  if (!infobarEnabled) {
-    _hideInfoBar();
-  }
-});
-
-// Show the bar immediately on load so the user sees "loading…"
+// Load the saved language first so the initial render is already translated,
+// then check infobar visibility and show the bar with "loading…" —
 // _maybeShowBar() will keep it visible once data arrives.
-createInfoBar();
-_loadSavedTime();
-_maybeShowBar();
+loadScriptrailLanguage(() => {
+  chrome.storage.sync.get(["infobarEnabled", "infobarWidth"], (res) => {
+    const infobarEnabled = res.infobarEnabled !== false;
+    if (res.infobarWidth) setInfoBarWidth(res.infobarWidth);
+    if (!infobarEnabled) {
+      _hideInfoBar();
+    }
+  });
+  createInfoBar();
+  _loadSavedTime();
+  _maybeShowBar();
+});
