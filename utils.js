@@ -19,6 +19,92 @@ const SCRIPTRAIL_CONFIG = {
 Object.freeze(SCRIPTRAIL_CONFIG);
 
 // ══════════════════════════════════════════════════════════════════════════════
+// INTERNATIONALIZATION (I18N)
+// ══════════════════════════════════════════════════════════════════════════════
+const SCRIPTRAIL_I18N = {
+  en: {
+    writingTime: "✍️ Writing Time",
+    copiedPassages: "📋 Copied Passages",
+    sessions: "🕐 Sessions",
+    loading: "Scriptrail: loading…",
+    calculating: "Scriptrail: calculating…",
+    loadError: "Scriptrail: couldn't load data — try reloading the page",
+    connectionLost: "Scriptrail: connection lost – reloading page…",
+    viewReport: "View Report",
+    reportUnavailable: "Report Unavailable",
+  },
+  es: {
+    writingTime: "✍️ Tiempo de escritura",
+    copiedPassages: "📋 Pasajes copiados",
+    sessions: "🕐 Sesiones",
+    loading: "Scriptrail: cargando…",
+    calculating: "Scriptrail: calculando…",
+    loadError: "Scriptrail: no se pudieron cargar los datos — recarga la página",
+    connectionLost: "Scriptrail: conexión perdida – recargando la página…",
+    viewReport: "Ver informe",
+    reportUnavailable: "Informe no disponible",
+  },
+  fr: {
+    writingTime: "✍️ Temps d'écriture",
+    copiedPassages: "📋 Passages copiés",
+    sessions: "🕐 Sessions",
+    loading: "Scriptrail : chargement…",
+    calculating: "Scriptrail : calcul en cours…",
+    loadError: "Scriptrail : échec du chargement — rechargez la page",
+    connectionLost: "Scriptrail : connexion perdue – rechargement…",
+    viewReport: "Voir le rapport",
+    reportUnavailable: "Rapport indisponible",
+  },
+  de: {
+    writingTime: "✍️ Schreibzeit",
+    copiedPassages: "📋 Kopierte Passagen",
+    sessions: "🕐 Sitzungen",
+    loading: "Scriptrail: wird geladen…",
+    calculating: "Scriptrail: wird berechnet…",
+    loadError: "Scriptrail: Daten konnten nicht geladen werden — Seite neu laden",
+    connectionLost: "Scriptrail: Verbindung verloren – Seite wird neu geladen…",
+    viewReport: "Bericht anzeigen",
+    reportUnavailable: "Bericht nicht verfügbar",
+  },
+  pt: {
+    writingTime: "✍️ Tempo de escrita",
+    copiedPassages: "📋 Trechos copiados",
+    sessions: "🕐 Sessões",
+    loading: "Scriptrail: carregando…",
+    calculating: "Scriptrail: calculando…",
+    loadError: "Scriptrail: falha ao carregar dados — recarregue a página",
+    connectionLost: "Scriptrail: conexão perdida – recarregando a página…",
+    viewReport: "Ver relatório",
+    reportUnavailable: "Relatório indisponível",
+  },
+};
+
+let _scriptrailLang = "en";
+
+/** Sets the active language, falling back to English for unsupported codes. */
+function setScriptrailLanguage(lang) {
+  _scriptrailLang = SCRIPTRAIL_I18N[lang] ? lang : "en";
+}
+
+/** Translates a key using the active language, falling back to English. */
+function t(key) {
+  const dict = SCRIPTRAIL_I18N[_scriptrailLang] || SCRIPTRAIL_I18N.en;
+  return dict[key] || SCRIPTRAIL_I18N.en[key] || key;
+}
+
+/** Loads the saved language preference and applies it; calls back with the resolved code. */
+function loadScriptrailLanguage(callback) {
+  if (!isStorageValid()) {
+    if (callback) callback(_scriptrailLang);
+    return;
+  }
+  chrome.storage.sync.get(["language"], (res) => {
+    setScriptrailLanguage(res?.language || "en");
+    if (callback) callback(_scriptrailLang);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // CONTEXT GUARDS
 // ══════════════════════════════════════════════════════════════════════════════
 /**
@@ -333,6 +419,10 @@ function uniqueValues(arr) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     SCRIPTRAIL_CONFIG,
+    SCRIPTRAIL_I18N,
+    setScriptrailLanguage,
+    t,
+    loadScriptrailLanguage,
     isCtxValid,
     isStorageValid,
     isValidToken,
