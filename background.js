@@ -69,11 +69,27 @@ if (message.action === "openReportTab") {
     });
   }
 
-  // ── 7. Broadcast infobar visibility update to all tabs ──────────────────────
+  // ── 8. Broadcast infobar visibility update to all tabs ──────────────────────
   if (message.action === "infobarUpdate") {
     _broadcastToDocs({
       type: "infobarUpdate",
       infobarValue: message.infobarValue
+    });
+  }
+
+  // ── 8. Broadcast language update to all tabs ─────────────────────────────────
+  if (message.action === "languageUpdate") {
+    _broadcastToDocs({
+      type: "languageUpdate",
+      language: message.language
+    });
+  }
+
+  // ── 9. Broadcast infobar panel-width update to all tabs ─────────────────────
+  if (message.action === "panelWidthUpdate") {
+    _broadcastToDocs({
+      type: "panelWidthUpdate",
+      width: message.width
     });
   }
 });
