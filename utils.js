@@ -56,10 +56,12 @@ function isStorageValid() {
 function isValidToken(token) {
   if (!token || typeof token !== "string") return false;
   if (token.length < SCRIPTRAIL_CONFIG.TOKEN_MIN_LENGTH) return false;
-  // Reject tokens with whitespace, quotes, or suspicious characters
-  if (/[\s"'\\"<>]/.test(token)) return false;
-  // Ensure token contains only expected URL-safe characters
-  if (!/^[a-zA-Z0-9_\-.~]+$/.test(token)) return false;
+  // Reject tokens with whitespace, quotes, angle brackets, or backslashes —
+  // these are the characters that could break out of the URL/query context.
+  // Real Docs tokens can legitimately contain other punctuation (=, /, +, :,
+  // etc.), so we blocklist dangerous characters instead of whitelisting a
+  // narrow charset.
+  if (/[\s"'\\<>]/.test(token)) return false;
   return true;
 }
 
