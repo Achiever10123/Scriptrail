@@ -69,28 +69,42 @@ function lightenColor(hex, pct = 70) {
 // 2.  DATA FETCHING
 // ══════════════════════════════════════════════════════════════════════════════
 
+const REPORT_FETCH_TIMEOUT_MS = 15000;
+
+// Local timeout wrapper — report.js runs standalone (no utils.js on this page)
+async function withTimeout(promise, timeoutMs, operationName = "Operation") {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${operationName} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function fetchTileData(docId, token, baseurl) {
-  const url = `${baseurl}${docId}/revisions/tiles?id=${docId}&start=1&showDetailedRevisions=false&token=${token}`;
-  const res = await fetch(url);
+  const url = `${baseurl}${docId}/revisions/tiles?id=${docId}&start=1&showDetailedRevisions=false&token=${encodeURIComponent(token)}`;
+  const res = await withTimeout(fetch(url), REPORT_FETCH_TIMEOUT_MS, "Tiles fetch");
   if (!res.ok) throw new Error("tiles fetch failed");
   const text = await res.text();
   return JSON.parse(text.slice(")]}'".length));
 }
 
 async function fetchChangelog(docId, token, baseurl, totalRevs) {
-  const loadingMsg = document.getElementById("loadingMessage");
-  if (loadingMsg) loadingMsg.textContent = "Loading revision history…";
-
-  const url = `${baseurl}${docId}/revisions/load?id=${docId}&start=1&end=${totalRevs}`;
-  const res = await fetch(url);
+  const url = `${baseurl}${docId}/revisions/load?id=${docId}&start=1&end=${totalRevs}&token=${encodeURIComponent(token)}`;
+  const res = await withTimeout(fetch(url), REPORT_FETCH_TIMEOUT_MS, "Revision fetch");
   if (!res.ok) throw new Error("changelog fetch failed");
   const text = await res.text();
   return JSON.parse(text.slice(")]}'".length));
 }
 
 async function fetchFirstContent(docId, token, baseurl) {
-  const url = `${baseurl}${docId}/showrevision?start=1&end=1&id=${docId}&token=${token}`;
-  const res = await fetch(url);
+  const url = `${baseurl}${docId}/showrevision?start=1&end=1&id=${docId}&token=${encodeURIComponent(token)}`;
+  const res = await withTimeout(fetch(url), REPORT_FETCH_TIMEOUT_MS, "First revision fetch");
   if (!res.ok) throw new Error("first revision fetch failed");
   const text = await res.text();
   const json = JSON.parse(text.slice(")]}'".length));
@@ -884,9 +898,8 @@ function renderEditInPlayback(edits, index, initialContent, highlightUserId) {
   // Build HTML safely using DOM methods instead of innerHTML
   const area = document.getElementById("playbackArea");
   // Clear area safely using DOM methods
-  clearElement(area); // was: while loop
-  }
-  
+  clearElement(area);
+
   if (edit.ty === "is") {
     const before = docAfter.slice(0, edit.loc - 1);
     const ins = edit.text;
@@ -1059,8 +1072,7 @@ function renderGroupBreakdown(allEdits, initialContent, users) {
   const playbackArea = document.getElementById("playbackArea");
   // Clear playbackArea safely using DOM methods
   clearElement(playbackArea);
-  }
-  
+
   let curUid = authors[0];
   let segment = text[0] || "";
 
@@ -1096,7 +1108,7 @@ function renderGroupBreakdown(allEdits, initialContent, users) {
   const legend = document.getElementById("groupBreakdownColors");
   // Clear legend safely using DOM methods
   clearElement(legend);
-  }
+
   Object.entries(users).forEach(([uid, info]) => {
     const tag = document.createElement("span");
     tag.className = "user-color-tag";
@@ -1249,17 +1261,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   try {
     // 1. Fetch tile metadata
+    const loadingMsg = document.getElementById("loadingMessage");
+    if (loadingMsg) loadingMsg.textContent = "Fetching revision data…";
     const tileData = await fetchTileData(docId, token, baseurl);
     const totalRevs = tileData.tileInfo[tileData.tileInfo.length - 1].end;
     const rawUsers = tileData.userMap;
 
-    // 2. Fetch full changelog
-    const changelogJson = await fetchChangelog(
-      docId,
-      token,
-      baseurl,
-      totalRevs,
-    );
+    // 2. Fetch full changelog and first-revision content in parallel —
+    // fetchFirstContent doesn't depend on totalRevs, no need to wait for it.
+    if (loadingMsg) loadingMsg.textContent = "Loading revision history…";
+    const [changelogJson, firstContentResult] = await Promise.all([
+      fetchChangelog(docId, token, baseurl, totalRevs),
+      fetchFirstContent(docId, token, baseurl),
+    ]);
+    firstContent = firstContentResult;
 
     // 3. Parse edits
     globalEdits = generateEdits(changelogJson.changelog, []);
@@ -1267,11 +1282,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 4. Clean user map
     globalUsers = cleanUserMap(globalEdits, rawUsers);
 
-    // 5. Fetch first-revision content (starting point for replay)
-    document.getElementById("loadingMessage").textContent = "Building replay…";
-    firstContent = await fetchFirstContent(docId, token, baseurl);
-
-    // 6. Build tabs panel
+    // 5. Build tabs panel
+    if (loadingMsg) loadingMsg.textContent = "Building replay…";
     buildTabsPanel(globalEdits, true);
 
     // 7. Populate user dropdowns
@@ -1371,8 +1383,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
   } catch (err) {
     console.error("[Scriptrail] report error:", err);
-    document.getElementById("loadingMessage").textContent =
-      "An error occurred — make sure you have edit access to this document, then refresh.";
+    const timedOut = /timed out/i.test(err?.message || "");
+    document.getElementById("loadingMessage").textContent = timedOut
+      ? "The connection is too slow to load this report — check your network and refresh."
+      : "An error occurred — make sure you have edit access to this document, then refresh.";
     return;
   }
 
