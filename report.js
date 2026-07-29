@@ -36,6 +36,15 @@ function applyDelete(str, si, ei) {
   return str.slice(0, si - 1) + str.slice(ei);
 }
 
+// utils.js isn't loaded on this page — report.js is standalone — so this
+// mirrors utils.js's clearElement() exactly.
+function clearElement(element) {
+  if (!element) return;
+  while (element.firstChild) {
+    element.removeChild(element.firstChild);
+  }
+}
+
 function formatDate(ms) {
   return new Date(ms).toLocaleString("en-US", {
     month: "2-digit",
