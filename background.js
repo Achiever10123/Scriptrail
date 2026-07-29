@@ -33,6 +33,8 @@ if (message.action === "openReportTab") {
       chrome.tabs.sendMessage(tabId, {
         type: "sharedData",
         payload: message.payload
+      }, () => {
+        if (chrome.runtime.lastError) { /* tab may have navigated away */ }
       });
     }
   }
@@ -44,6 +46,8 @@ if (message.action === "openReportTab") {
       chrome.tabs.sendMessage(tabId, {
         action: "refreshData",
         payload: message.payload
+      }, () => {
+        if (chrome.runtime.lastError) { /* tab may have navigated away */ }
       });
     }
   }
