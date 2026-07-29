@@ -23,7 +23,10 @@ document.addEventListener("DOMContentLoaded", () => {
   languageSelect.addEventListener("change", () => {
     const selectedLanguage = languageSelect.value;
     chrome.storage.sync.set({ language: selectedLanguage });
-    chrome.runtime.sendMessage({ action: "languageUpdate", language: selectedLanguage });
+    chrome.runtime.sendMessage(
+      { action: "languageUpdate", language: selectedLanguage },
+      () => { if (chrome.runtime.lastError) { /* no Docs tab open — fine */ } }
+    );
   });
 
   // ── Infobar panel width ────────────────────────────────────────────────────
@@ -39,7 +42,10 @@ document.addEventListener("DOMContentLoaded", () => {
       width = Math.min(500, Math.max(200, width)); // keep it usable
       panelWidthInput.value = width;
       chrome.storage.sync.set({ infobarWidth: width });
-      chrome.runtime.sendMessage({ action: "panelWidthUpdate", width });
+      chrome.runtime.sendMessage(
+        { action: "panelWidthUpdate", width },
+        () => { if (chrome.runtime.lastError) { /* no Docs tab open — fine */ } }
+      );
     });
   }
 
