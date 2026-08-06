@@ -69,6 +69,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // ── Open settings page ──────────────────────────────────────────────────────
+  const openSettingsBtn = document.getElementById("openSettingsBtn");
+  if (openSettingsBtn) {
+    openSettingsBtn.addEventListener("click", () => {
+      if (chrome.runtime.openOptionsPage) {
+        chrome.runtime.openOptionsPage();
+      } else {
+        window.open(chrome.runtime.getURL("settings.html"));
+      }
+    });
+  }
+
   function applyTheme(theme) {
     if (theme === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark');
