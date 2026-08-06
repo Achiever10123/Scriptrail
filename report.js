@@ -581,8 +581,10 @@ function _jumpToEdit(item, allEdits) {
 // 9.  CHARTS
 // ══════════════════════════════════════════════════════════════════════════════
 
-const CHART_COLOR = "rgba(139, 92, 246, 1.0)";
-const CHART_LINE_COLOR = "rgba(6, 182, 212, 1.0)";
+const CHART_COLOR = "rgba(227, 168, 87, 1.0)"; // blaze amber
+const CHART_LINE_COLOR = "rgba(79, 166, 151, 1.0)"; // pine teal
+const CHART_FILL_COLOR = "rgba(227, 168, 87, 0.14)";
+let CHART_GRID_COLOR = "rgba(20, 20, 20, 0.08)"; // set per-theme in initializeDarkMode()
 
 function buildDateChart(edits) {
   const dateMap = new Map();
@@ -607,7 +609,7 @@ function buildDateChart(edits) {
         {
           data,
           borderColor: CHART_COLOR,
-          backgroundColor: "rgba(139, 92, 246, 0.08)",
+          backgroundColor: CHART_FILL_COLOR,
           borderWidth: 3,
           fill: true,
           tension: 0.4,
@@ -625,12 +627,12 @@ function buildDateChart(edits) {
       scales: {
         x: {
           title: { display: true, text: "Date" },
-          grid: { color: "rgba(139, 92, 246, 0.05)" },
+          grid: { color: CHART_GRID_COLOR },
         },
         y: {
           title: { display: true, text: "Edits" },
           beginAtZero: true,
-          grid: { color: "rgba(139, 92, 246, 0.05)" },
+          grid: { color: CHART_GRID_COLOR },
         },
       },
       onClick(_, elements) {
@@ -695,7 +697,7 @@ function buildHourChart(edits, filterDate) {
         {
           data,
           borderColor: CHART_COLOR,
-          backgroundColor: "rgba(139, 92, 246, 0.08)",
+          backgroundColor: CHART_FILL_COLOR,
           borderWidth: 3,
           fill: true,
           tension: 0.4,
@@ -713,12 +715,12 @@ function buildHourChart(edits, filterDate) {
       scales: {
         x: {
           title: { display: true, text: "Hour of Day" },
-          grid: { color: "rgba(139, 92, 246, 0.05)" },
+          grid: { color: CHART_GRID_COLOR },
         },
         y: {
           title: { display: true, text: "Edits" },
           beginAtZero: true,
-          grid: { color: "rgba(139, 92, 246, 0.05)" },
+          grid: { color: CHART_GRID_COLOR },
         },
       },
     },
@@ -758,7 +760,7 @@ function buildTimePerDayChart(edits) {
         {
           data,
           borderColor: CHART_COLOR,
-          backgroundColor: "rgba(139, 92, 246, 0.08)",
+          backgroundColor: CHART_FILL_COLOR,
           borderWidth: 3,
           fill: true,
           tension: 0.4,
@@ -776,12 +778,12 @@ function buildTimePerDayChart(edits) {
       scales: {
         x: {
           title: { display: true, text: "Date" },
-          grid: { color: "rgba(139, 92, 246, 0.05)" },
+          grid: { color: CHART_GRID_COLOR },
         },
         y: {
           title: { display: true, text: "Minutes" },
           beginAtZero: true,
-          grid: { color: "rgba(139, 92, 246, 0.05)" },
+          grid: { color: CHART_GRID_COLOR },
         },
       },
     },
@@ -1180,6 +1182,7 @@ function initializeDarkMode() {
     document.documentElement.removeAttribute("data-theme");
     if (darkModeBtn) darkModeBtn.textContent = "🌙";
   }
+  _applyChartTheme(savedTheme === "dark");
 
   // Add toggle listener
   if (darkModeBtn) {
@@ -1191,7 +1194,26 @@ function initializeDarkMode() {
       localStorage.setItem("scriptrail-theme", newTheme);
 
       darkModeBtn.textContent = newTheme === "dark" ? "☀️" : "🌙";
+
+      _applyChartTheme(newTheme === "dark");
+      // Redraw existing charts so their canvas colors pick up the change —
+      // CSS variables don't reach into already-rendered canvas content.
+      if (globalEdits && globalEdits.length) {
+        const uid = document.getElementById("userSelect")?.value || "default";
+        renderFullReport(filterByUser(globalEdits, uid), globalUsers, 0);
+      }
     });
+  }
+}
+
+// Sets Chart.js's default text/grid colors to match the active theme.
+// Canvas-rendered charts don't pick up CSS custom properties, so this has
+// to happen in JS whenever the theme changes.
+function _applyChartTheme(isDark) {
+  CHART_GRID_COLOR = isDark ? "rgba(241, 236, 224, 0.10)" : "rgba(33, 38, 44, 0.08)";
+  if (window.Chart) {
+    Chart.defaults.color = isDark ? "#A9B1B9" : "#545C64";
+    Chart.defaults.borderColor = CHART_GRID_COLOR;
   }
 }
 
