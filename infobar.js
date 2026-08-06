@@ -61,6 +61,47 @@ let _lastSessionCount = 0;
 // without needing fresh data: "loading" | "calculating" | "error" | "data"
 let _lastRenderState = "loading";
 
+// Builds the "● Scriptrail" header row shared by every bar state.
+function _buildHeader() {
+  const header = document.createElement("div");
+  header.className = "sr-header";
+  const dot = document.createElement("span");
+  dot.className = "sr-header-dot";
+  const title = document.createElement("span");
+  title.className = "sr-header-title";
+  const em = document.createElement("em");
+  em.textContent = "Script";
+  title.appendChild(em);
+  title.appendChild(document.createTextNode("rail"));
+  header.appendChild(dot);
+  header.appendChild(title);
+  return header;
+}
+
+// Renders a header (wordmark + live dot) plus a centered status message —
+// used for the loading / calculating / error states so they match the
+// styled "data loaded" view instead of falling back to plain text.
+function _renderStatus(bar, text) {
+  clearElement(bar);
+
+  const closeBtn = document.createElement("button");
+  closeBtn.id = "scriptrailInfoBarClose";
+  closeBtn.title = "Close";
+  closeBtn.textContent = "×";
+  closeBtn.addEventListener("click", _hideInfoBar);
+
+  const body = document.createElement("div");
+  body.className = "sr-body sr-body-status";
+  const msg = document.createElement("p");
+  msg.className = "sr-status-text";
+  msg.textContent = text;
+  body.appendChild(msg);
+
+  bar.appendChild(closeBtn);
+  bar.appendChild(_buildHeader());
+  bar.appendChild(body);
+}
+
 // Re-renders whatever is currently on screen in the newly-selected language.
 function _applyLanguage() {
   const bar = document.getElementById("scriptrailInfoBar");
@@ -70,13 +111,13 @@ function _applyLanguage() {
       updateInfoBar(formatWritingTime(_getLiveWritingTimeMs()), _lastCopiedCount, _lastSessionCount);
       break;
     case "calculating":
-      bar.textContent = t("calculating");
+      _renderStatus(bar, t("calculating"));
       break;
     case "error":
-      bar.textContent = t("loadError");
+      _renderStatus(bar, t("loadError"));
       break;
     default:
-      bar.textContent = t("loading");
+      _renderStatus(bar, t("loading"));
   }
 }
 
@@ -109,60 +150,151 @@ function createInfoBar() {
   const style = document.createElement("style");
   style.textContent = `
     #scriptrailInfoBar {
+      --sr-bg: #faf7f0;
+      --sr-surface: #ffffff;
+      --sr-border: #e3dcc9;
+      --sr-border-strong: #cfc4a6;
+      --sr-ink: #21262c;
+      --sr-ink-soft: #545c64;
+      --sr-ink-faint: #8a9096;
+      --sr-blaze: #c97f2e;
+      --sr-blaze-soft: #f2dfc0;
+      --sr-pine: #2e7c6c;
+      --sr-pine-soft: #d6ece7;
+      --sr-clay: #a83f32;
+      --sr-clay-soft: #f3d9d4;
+
       position: fixed;
       right: 0;
       top: 0;
       width: var(--scriptrail-panel-width, 280px);
       height: 100vh;
-      background-color: #f0f9f0;
-      border-left: 1px solid #c8e6c9;
-      padding: 16px;
+      background-color: var(--sr-bg);
+      border-left: 1px solid var(--sr-border);
+      box-shadow: -8px 0 24px -12px rgba(20, 16, 8, 0.18);
       box-sizing: border-box;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: #2d6a2d;
+      color: var(--sr-ink);
       z-index: 10000;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 12px;
     }
-    #scriptrailInfoBar .sr-section { 
+    [data-theme="dark"] #scriptrailInfoBar {
+      --sr-bg: #12161b;
+      --sr-surface: #1a2027;
+      --sr-border: #2b333d;
+      --sr-border-strong: #3a4550;
+      --sr-ink: #f1ece0;
+      --sr-ink-soft: #a9b1b9;
+      --sr-ink-faint: #6e7780;
+      --sr-blaze: #e3a857;
+      --sr-blaze-soft: #3a2f1c;
+      --sr-pine: #5fb7a7;
+      --sr-pine-soft: #16302b;
+      --sr-clay: #d9776a;
+      --sr-clay-soft: #3a1f1c;
+      box-shadow: -8px 0 24px -12px rgba(0, 0, 0, 0.5);
+    }
+    #scriptrailInfoBar .sr-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 16px 44px 12px 16px;
+      border-bottom: 1px dashed var(--sr-border-strong);
+      flex: none;
+    }
+    #scriptrailInfoBar .sr-header-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--sr-blaze); flex: none;
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--sr-blaze) 22%, transparent);
+      animation: sr-pulse 2.2s ease-in-out infinite;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #scriptrailInfoBar .sr-header-dot { animation: none; }
+    }
+    @keyframes sr-pulse {
+      0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sr-blaze) 22%, transparent); }
+      50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--sr-blaze) 10%, transparent); }
+    }
+    #scriptrailInfoBar .sr-header-title {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: -0.01em;
+    }
+    #scriptrailInfoBar .sr-header-title em {
+      font-style: italic; color: var(--sr-blaze); font-weight: 600;
+    }
+    #scriptrailInfoBar .sr-body {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      padding: 12px;
-      background: white;
-      border: 1px solid #c8e6c9;
-      border-radius: 6px;
-      font-size: 13px;
+      gap: 10px;
+      padding: 14px 16px 16px;
+      overflow-y: auto;
     }
+    #scriptrailInfoBar .sr-body-status {
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px 20px;
+    }
+    #scriptrailInfoBar .sr-status-text {
+      font-size: 12.5px;
+      color: var(--sr-ink-soft);
+      line-height: 1.5;
+      margin: 0;
+    }
+    #scriptrailInfoBar .sr-section {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding: 12px 14px;
+      background: var(--sr-surface);
+      border: 1px solid var(--sr-border);
+      border-radius: 10px;
+      font-size: 13px;
+      position: relative;
+      transition: border-color 0.15s ease;
+    }
+    #scriptrailInfoBar .sr-section:hover { border-color: var(--sr-border-strong); }
+    #scriptrailInfoBar .sr-section::before {
+      content: "";
+      position: absolute; left: 0; top: 14px; bottom: 14px;
+      width: 3px; border-radius: 0 3px 3px 0;
+      background: var(--sr-blaze);
+      opacity: 0.7;
+    }
+    #scriptrailInfoBar .sr-section:nth-child(2)::before { background: var(--sr-pine); }
+    #scriptrailInfoBar .sr-section:nth-child(3)::before { background: var(--sr-ink-faint); }
     #scriptrailInfoBar .sr-section-label {
       font-weight: 600;
-      color: #1b5e20;
-      font-size: 12px;
+      color: var(--sr-ink-faint);
+      font-size: 10.5px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.06em;
     }
     #scriptrailInfoBar .sr-section-value {
-      font-size: 16px;
+      font-size: 18px;
       font-weight: 700;
-      color: #2d6a2d;
+      color: var(--sr-ink);
+      font-variant-numeric: tabular-nums;
     }
     #scriptrailInfoBar .sr-divider { display: none; }
     #scriptrailInfoBarClose {
-      position: absolute; right: 12px; top: 12px;
-      background: none; border: none; font-size: 18px;
-      cursor: pointer; color: #66bb6a; padding: 4px 8px; border-radius: 4px;
-      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      position: absolute; right: 10px; top: 12px;
+      background: none; border: none; font-size: 16px;
+      cursor: pointer; color: var(--sr-ink-faint); padding: 4px 8px; border-radius: 6px;
+      width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+      transition: color 0.15s ease, background-color 0.15s ease;
     }
-    #scriptrailInfoBarClose:hover { color: #2d6a2d; background: rgba(0,0,0,0.08); }
+    #scriptrailInfoBarClose:hover { color: var(--sr-clay); background: var(--sr-clay-soft); }
   `;
   document.head.appendChild(style);
 
   const panel = document.createElement("div");
   panel.id = "scriptrailInfoBar";
-  panel.textContent = t("loading");
   document.body.appendChild(panel);
+  _renderStatus(panel, t("loading"));
 }
 
 function _showInfoBar() {
@@ -201,41 +333,42 @@ function _renderBarContent(bar, writingTime, copiedCount, sessionCount) {
   // Use textContent instead of innerHTML to prevent XSS
   // Clear bar safely using DOM methods
   clearElement(bar);
-  
+
   const closeBtn = document.createElement('button');
   closeBtn.id = 'scriptrailInfoBarClose';
   closeBtn.title = 'Close';
   closeBtn.textContent = '×';
   closeBtn.addEventListener('click', _hideInfoBar);
   bar.appendChild(closeBtn);
-  
+  bar.appendChild(_buildHeader());
+
   const contentDiv = document.createElement('div');
-  contentDiv.style.marginTop = '24px';
-  
+  contentDiv.className = 'sr-body';
+
   const sections = [
     { label: t('writingTime'), value: String(writingTime) },
     { label: t('copiedPassages'), value: String(copiedCount) },
     { label: t('sessions'), value: String(sessionCount) }
   ];
-  
+
   sections.forEach(section => {
     const sectionDiv = document.createElement('div');
     sectionDiv.className = 'sr-section';
-    
+
     const labelDiv = document.createElement('div');
     labelDiv.className = 'sr-section-label';
     labelDiv.textContent = section.label;
-    
+
     const valueDiv = document.createElement('div');
     valueDiv.className = 'sr-section-value';
     // Sanitize display values to prevent XSS
     valueDiv.textContent = sanitizeText(section.value, 50);
-    
+
     sectionDiv.appendChild(labelDiv);
     sectionDiv.appendChild(valueDiv);
     contentDiv.appendChild(sectionDiv);
   });
-  
+
   bar.appendChild(contentDiv);
 }
 
@@ -472,7 +605,7 @@ function setupInfoBarListener() {
         createInfoBar();
         const bar = document.getElementById("scriptrailInfoBar");
         if (bar && !_barDismissed) {
-          bar.textContent = t("loadError");
+          _renderStatus(bar, t("loadError"));
           bar.style.display = "block";
         }
         return;
@@ -492,7 +625,7 @@ function setupInfoBarListener() {
         createInfoBar();
         const bar = document.getElementById("scriptrailInfoBar");
         if (bar) {
-          bar.textContent = t("calculating");
+          _renderStatus(bar, t("calculating"));
           bar.style.display = "block";
         }
       }
