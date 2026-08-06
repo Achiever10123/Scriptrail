@@ -1,286 +1,202 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scriptrail Report</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="report.css" />
-  </head>
-  <body>
+<head>
+  <meta charset="UTF-8" />
+  <title>Scriptrail — Report</title>
+  <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="report.css" />
+</head>
+<body>
 
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay">
-      <div class="loader-inner">
-        <div id="loadingSpinner"></div>
-        <p id="loadingMessage">Fetching revision data…</p>
-      </div>
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-card">
+      <svg class="loading-trail" viewBox="0 0 120 40" aria-hidden="true">
+        <path d="M2 30 C 20 8, 35 34, 52 18 S 80 4, 98 22 S 112 30, 118 14"
+              fill="none" stroke="var(--blaze)" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="2" cy="30" r="4" fill="var(--pine)"/>
+        <circle cx="118" cy="14" r="4" fill="var(--blaze)"/>
+      </svg>
+      <p id="loadingMessage">Fetching revision data…</p>
     </div>
+  </div>
 
-    <!-- Sidebar Nav -->
-    <aside id="sideNav">
-      <div class="sidenav-brand">
-        <img src="icons/icon128.png" alt="Scriptrail" class="sidenav-icon" />
-        <span class="sidenav-name">Scriptrail</span>
-      </div>
-      <nav class="sidenav-links">
-        <a href="#replaySection" class="snav-link active" data-section="replaySection">
-          <span class="snav-icon">▶</span>
-          <span class="snav-label">Replay</span>
-        </a>
-        <a href="#copyPasteSection" class="snav-link" data-section="copyPasteSection">
-          <span class="snav-icon">⎘</span>
-          <span class="snav-label">Copy/Paste</span>
-        </a>
-        <a href="#graphSection" class="snav-link" data-section="graphSection">
-          <span class="snav-icon">◈</span>
-          <span class="snav-label">Charts</span>
-        </a>
-        <a href="#sessionsSection" class="snav-link" data-section="sessionsSection">
-          <span class="snav-icon">◷</span>
-          <span class="snav-label">Sessions</span>
-        </a>
-        <a href="#groupSection" class="snav-link" data-section="groupSection">
-          <span class="snav-icon">◉</span>
-          <span class="snav-label">Group</span>
-        </a>
-      </nav>
-    </aside>
+  <div class="report-page">
 
-    <!-- Main Content -->
-    <div id="pageWrapper">
-
-      <!-- Page Header -->
-      <header>
-        <div class="header-meta">
-          <span class="header-label">Writing Report</span>
-          <div class="header-filter-row">
-            <label for="userSelect">Filter:</label>
-            <select id="userSelect">
-              <option value="default">All Contributors</option>
-            </select>
-            <span id="reportUserLabel" class="hidden"></span>
-          </div>
-        </div>
+    <header class="report-header">
+      <div class="report-header-top">
+        <span class="sr-wordmark">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 18c3-1 4-4 6-5.5S13 10 14 7s3-4 7-4" stroke="var(--blaze)" stroke-width="2" stroke-linecap="round" stroke-dasharray="0.1 5"/>
+            <circle cx="3" cy="18" r="2" fill="var(--pine)"/>
+            <circle cx="21" cy="3" r="2" fill="var(--blaze)"/>
+          </svg>
+          Script<em>rail</em>
+        </span>
         <div class="header-actions">
-          <button id="themeToggleBtn" class="header-btn" title="Toggle Dark Mode">🌙</button>
-          <button id="exportMdBtn" class="header-btn" title="Export to Markdown">📥 Export MD</button>
+          <button id="exportMdBtn" class="btn btn-ghost">Export Markdown</button>
+          <button id="themeToggleBtn" class="btn btn-ghost btn-icon" title="Toggle light / dark" aria-label="Toggle theme">🌙</button>
         </div>
-        <h1 id="docTitle">Loading document…</h1>
-      </header>
+      </div>
+      <h1 id="docTitle" class="doc-title">Untitled Document</h1>
+      <div id="tabsContainer" class="tabs-container"></div>
+    </header>
 
-      <main>
+    <main class="report-main">
 
-        <!-- ── Replay Section ───────────────────────────────────────── -->
-        <section id="replaySection" class="section-block">
-          <div class="section-header">
-            <h2 class="section-title">Edit Replay</h2>
-            <p class="section-sub">Step through every revision in real time</p>
+      <!-- ── Overview stats ─────────────────────────────────────────────── -->
+      <section class="stats-row" aria-label="Overview">
+        <div class="card stat-card">
+          <span class="eyebrow">Route length</span>
+          <p id="statTime" class="stat-figure"></p>
+        </div>
+        <div class="card stat-card">
+          <span class="eyebrow">Waypoints logged</span>
+          <p id="statEdits" class="stat-figure"></p>
+        </div>
+        <div class="card stat-card">
+          <span class="eyebrow">Output</span>
+          <p id="statWords" class="stat-figure"></p>
+        </div>
+        <div class="card stat-card">
+          <span class="eyebrow">Backtracking</span>
+          <p id="statDeletes" class="stat-figure"></p>
+        </div>
+      </section>
+
+      <!-- ── User filter ────────────────────────────────────────────────── -->
+      <section class="filter-bar card">
+        <label class="filter-item">
+          <span class="eyebrow">Filter by</span>
+          <select id="userSelect" class="field-select">
+            <option value="default">All Users</option>
+          </select>
+        </label>
+        <p class="filter-note">Showing the trail for <span id="reportUserLabel" class="report-user-span">All Users</span></p>
+      </section>
+
+      <!-- ── Session trail ──────────────────────────────────────────────── -->
+      <section class="card trail-card">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Session trail</span>
+            <h2>Sessions <span id="sessionCount">(0)</span> · <span class="report-user-span stat-user-label">All Users</span></h2>
           </div>
+        </div>
+        <div id="sessionCards" class="session-trail"></div>
+        <div class="section-footer">
+          <button id="showAllSessionsBtn" class="btn btn-ghost" style="display:none;">Show all sessions</button>
+          <button id="hideSessionsBtn" class="btn btn-ghost" style="display:none;">Show fewer</button>
+        </div>
+      </section>
 
-          <div class="replay-controls">
-            <div class="ctrl-group">
-              <button id="prevEditBtn" class="ctrl-btn" title="Previous Edit">&#9664;</button>
-              <button id="playBtn" class="ctrl-btn primary-btn">Play</button>
-              <button id="nextEditBtn" class="ctrl-btn" title="Next Edit">&#9654;</button>
-            </div>
-
-            <input type="range" id="playbackSlider" min="0" value="0" />
-
-            <div class="ctrl-group speed-group">
-              <label for="speedSelect">Speed</label>
-              <select id="speedSelect">
-                <option value="0.1">1 – Slow</option>
-                <option value="0.25">2</option>
-                <option value="0.5">3</option>
-                <option value="1">4</option>
-                <option value="2" selected>5</option>
-                <option value="3">6</option>
-                <option value="5">7</option>
-                <option value="7">8</option>
-                <option value="10">9</option>
-                <option value="12">10 – Fast</option>
-              </select>
-            </div>
+      <!-- ── Charts ──────────────────────────────────────────────────────── -->
+      <section class="chart-grid">
+        <div class="card chart-card">
+          <div class="section-heading">
+            <span class="eyebrow">By date</span>
+            <h2>Edits per day</h2>
           </div>
+          <div class="chart-wrap"><canvas id="dateChart"></canvas></div>
+        </div>
 
-          <div class="replay-meta">
-            <p id="replayDate"></p>
-            <div class="highlight-row">
-              <label for="highlightUserSelect">Highlight:</label>
-              <select id="highlightUserSelect">
-                <option value="default">None</option>
-              </select>
-              <span class="tooltip-wrap">
-                ⓘ
-                <span class="tooltip-text">
-                  Selected user's edits appear <span class="mark-hl">teal</span>;
-                  all others appear <span class="mark-ins">amber</span>.
-                </span>
-              </span>
+        <div class="card chart-card">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">By hour · <span id="hourChartDateLabel">All Dates</span></span>
+              <h2>When you write</h2>
             </div>
+            <button id="resetTimeChartBtn" class="btn btn-ghost btn-sm" style="display:none;">Reset</button>
           </div>
+          <div class="chart-wrap"><canvas id="timeChart"></canvas></div>
+        </div>
 
-          <!-- Resizable layout: sidebar + playback -->
-          <div class="replay-body" id="replayBody">
-            <div id="tabsPanel">
-              <h4 class="panel-heading">Tabs</h4>
-              <div id="tabsContainer"></div>
-              <hr class="panel-divider"/>
-              <div id="docStats">
-                <h4 class="panel-heading">Stats — <span class="stat-user-label">All</span></h4>
-                <p class="stat-row" id="statWords"></p>
-                <p class="stat-row" id="statDeletes"></p>
-                <p class="stat-row" id="statTime"></p>
-                <p class="stat-row" id="statEdits"></p>
-              </div>
-              <button id="groupBreakdownBtn" class="panel-btn">Group Breakdown</button>
-              <div id="groupBreakdownColors"></div>
-            </div>
-
-            <!-- Drag handle -->
-            <div id="resizeHandle" title="Drag to resize panel"></div>
-
-            <div id="playbackArea"></div>
+        <div class="card chart-card">
+          <div class="section-heading">
+            <span class="eyebrow">By day</span>
+            <h2>Minutes written</h2>
           </div>
-        </section>
+          <div class="chart-wrap"><canvas id="timePerDayChart"></canvas></div>
+        </div>
 
-        <!-- ── Report Section ───────────────────────────────────────── -->
-        <section id="reportSection" class="section-block">
-
-          <!-- Copy/Paste -->
-          <div id="copyPasteSection" class="sub-section">
-            <div class="section-header">
-              <div>
-                <h2 class="section-title">Copy/Paste Detection <span id="copyCount" class="count-badge"></span></h2>
-                <p class="section-sub">Text pasted from an external source not previously in the document</p>
-              </div>
-              <label class="checkbox-row">
-                <input type="checkbox" id="showLinksCheckbox" checked />
-                Show Hyperlinks
-              </label>
+        <div class="card chart-card">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">By author</span>
+              <h2>Group breakdown</h2>
             </div>
-            <div id="copyCardContainer" class="card-grid"></div>
-            <div class="btn-row">
-              <button id="showAllCopyBtn" class="ghost-btn">Show All</button>
-              <button id="hideCopyBtn" class="ghost-btn" style="display:none">Show Less</button>
-            </div>
+            <select id="groupMetricSelect" class="field-select btn-sm">
+              <option value="time">Time</option>
+              <option value="edits">Edits</option>
+            </select>
           </div>
+          <div class="chart-wrap chart-wrap-doughnut"><canvas id="groupPieChart"></canvas></div>
+        </div>
+      </section>
 
-          <!-- Charts -->
-          <div id="graphSection" class="sub-section">
-            <div class="section-header">
-              <div>
-                <h2 class="section-title">Activity Charts</h2>
-                <p class="section-sub">Visual breakdown of writing activity over time</p>
-              </div>
-            </div>
+      <!-- ── Replay ──────────────────────────────────────────────────────── -->
+      <section class="card replay-card">
+        <div class="section-heading">
+          <span class="eyebrow">Replay</span>
+          <h2>Watch it get written</h2>
+        </div>
 
-            <div class="chart-block">
-              <h3 class="chart-title">Edits per Date — <span class="report-user-span">All Contributors</span></h3>
-              <p class="chart-hint">Click a bar to drill into that day's hourly breakdown</p>
-              <div class="chart-wrap"><canvas id="dateChart" class="chart-canvas"></canvas></div>
-            </div>
+        <div class="replay-controls-row">
+          <button id="prevEditBtn" class="btn btn-icon" aria-label="Previous edit">‹</button>
+          <button id="playBtn" class="btn btn-primary replay-play">Play</button>
+          <button id="nextEditBtn" class="btn btn-icon" aria-label="Next edit">›</button>
+          <input id="playbackSlider" type="range" min="0" max="0" value="0" class="replay-slider" />
+          <select id="speedSelect" class="field-select btn-sm">
+            <option value="0.5">0.5×</option>
+            <option value="1" selected>1×</option>
+            <option value="2">2×</option>
+            <option value="4">4×</option>
+          </select>
+        </div>
 
-            <div class="chart-block">
-              <h3 class="chart-title">Edits by Hour — <span class="report-user-span">All Contributors</span> on <span id="hourChartDateLabel">All Dates</span></h3>
-              <button id="resetTimeChartBtn" class="ghost-btn small-btn" style="display:none">← All Dates</button>
-              <div class="chart-wrap"><canvas id="timeChart" class="chart-canvas"></canvas></div>
-            </div>
+        <div class="replay-settings-row">
+          <label class="filter-item">
+            <span class="eyebrow">Highlight</span>
+            <select id="highlightUserSelect" class="field-select btn-sm">
+              <option value="default">No highlight</option>
+            </select>
+          </label>
+          <button id="groupBreakdownBtn" class="btn btn-ghost btn-sm">Color whole doc by author</button>
+          <span id="replayDate" class="replay-date"></span>
+        </div>
 
-            <div class="chart-block">
-              <h3 class="chart-title">Time Spent per Date — <span class="report-user-span">All Contributors</span></h3>
-              <div class="chart-wrap"><canvas id="timePerDayChart" class="chart-canvas"></canvas></div>
-            </div>
+        <div id="groupBreakdownColors" class="legend-row"></div>
+        <div id="playbackArea" class="playback-area"></div>
+      </section>
+
+      <!-- ── Copied passages ─────────────────────────────────────────────── -->
+      <section class="card">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Flagged</span>
+            <h2>Copied passages<span id="copyCount"></span></h2>
           </div>
+          <label class="check-row">
+            <input type="checkbox" id="showLinksCheckbox" checked />
+            Include link pastes
+          </label>
+        </div>
+        <div id="copyCardContainer" class="copy-grid"></div>
+        <div class="section-footer">
+          <button id="showAllCopyBtn" class="btn btn-ghost" style="display:none;">Show all</button>
+          <button id="hideCopyBtn" class="btn btn-ghost" style="display:none;">Show fewer</button>
+        </div>
+      </section>
 
-          <!-- Sessions -->
-          <div id="sessionsSection" class="sub-section">
-            <div class="section-header">
-              <div>
-                <h2 class="section-title">Writing Sessions <span id="sessionCount" class="count-badge"></span></h2>
-                <p class="section-sub">A continuous period with no gap longer than 10 minutes</p>
-              </div>
-            </div>
-            <div id="sessionCards"></div>
-            <div class="btn-row">
-              <button id="showAllSessionsBtn" class="ghost-btn">See All</button>
-              <button id="hideSessionsBtn" class="ghost-btn" style="display:none">Show Less</button>
-            </div>
-          </div>
+    </main>
 
-          <!-- Group Pie -->
-          <div id="groupSection" class="sub-section">
-            <div class="section-header">
-              <div>
-                <h2 class="section-title">Group Breakdown</h2>
-                <p class="section-sub">Contribution split across all collaborators</p>
-              </div>
-              <div class="ctrl-group">
-                <label for="groupMetricSelect">Metric:</label>
-                <select id="groupMetricSelect">
-                  <option value="time">Time Spent</option>
-                  <option value="edits">Edits Made</option>
-                </select>
-              </div>
-            </div>
-            <div class="chart-wrap pie-wrap"><canvas id="groupPieChart" class="pie-canvas"></canvas></div>
-          </div>
+    <footer class="report-footer">
+      <span class="sr-wordmark small"><em>Script</em>rail</span>
+      <span>— a trail map of how this document came to be.</span>
+    </footer>
 
-        </section>
+  </div>
 
-      </main>
-    </div><!-- /pageWrapper -->
-
-    <script src="libs/chart.min.js"></script>
-    <script src="report.js"></script>
-    <script>
-      // ── Smooth scroll nav highlight
-      const sections = ['replaySection','copyPasteSection','graphSection','sessionsSection','groupSection'];
-      const navLinks = document.querySelectorAll('.snav-link');
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            navLinks.forEach(l => l.classList.remove('active'));
-            const link = document.querySelector(`.snav-link[data-section="${entry.target.id}"]`);
-            if (link) link.classList.add('active');
-          }
-        });
-      }, { threshold: 0.2 });
-      sections.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) observer.observe(el);
-      });
-
-      // ── Resizable panel
-      const handle = document.getElementById('resizeHandle');
-      const panel = document.getElementById('tabsPanel');
-      let isResizing = false;
-      let startX, startW;
-
-      handle.addEventListener('mousedown', e => {
-        isResizing = true;
-        startX = e.clientX;
-        startW = panel.getBoundingClientRect().width;
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-      });
-
-      document.addEventListener('mousemove', e => {
-        if (!isResizing) return;
-        const delta = e.clientX - startX;
-        const newW = Math.min(420, Math.max(160, startW + delta));
-        panel.style.width = newW + 'px';
-        panel.style.flex = 'none';
-      });
-
-      document.addEventListener('mouseup', () => {
-        isResizing = false;
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-      });
-    </script>
-  </body>
+  <script src="libs/chart.min.js"></script>
+  <script src="report.js"></script>
+</body>
 </html>
