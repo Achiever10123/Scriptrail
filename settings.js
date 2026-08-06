@@ -1,8 +1,9 @@
 // ─── settings.js ──────────────────────────────────────────────────────────────
-// Controls the extension settings popup.
+// Controls the extension settings page.
 // - Handles language selection
 // - Handles infobar panel width
 // - Handles resetting stored writing-time data
+// - Handles light/dark theme (shared with the popup via chrome.storage.sync)
 // - Saves preferences to chrome.storage.sync
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -10,6 +11,34 @@ document.addEventListener("DOMContentLoaded", () => {
   const panelWidthInput = document.getElementById("panelWidthInput");
   const resetDataBtn = document.getElementById("resetDataBtn");
   const resetDataStatus = document.getElementById("resetDataStatus");
+  const themeToggleBtn = document.getElementById("themeToggleBtn");
+
+  // ── Theme (shared with popup.js's "theme" key so both stay in sync) ───────
+  function applyTheme(theme) {
+    if (theme === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+      if (themeToggleBtn) themeToggleBtn.textContent = "☀️";
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+      if (themeToggleBtn) themeToggleBtn.textContent = "🌙";
+    }
+  }
+
+  chrome.storage.sync.get(["theme"], (res) => applyTheme(res.theme || "light"));
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", () => {
+      chrome.storage.sync.get(["theme"], (res) => {
+        const newTheme = (res.theme || "light") === "light" ? "dark" : "light";
+        chrome.storage.sync.set({ theme: newTheme }, () => {
+          applyTheme(newTheme);
+          chrome.runtime.sendMessage({ action: "themeUpdate", theme: newTheme }, () => {
+            if (chrome.runtime.lastError) { /* no Docs tab open — fine */ }
+          });
+        });
+      });
+    });
+  }
 
   // ── Language ────────────────────────────────────────────────────────────────
   // Load saved language setting
