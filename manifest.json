@@ -9,6 +9,7 @@
     "default_popup": "popup.html",
     "default_icon": "icons/icon128.png"
   },
+  "options_page": "settings.html",
   "background": {
     "service_worker": "background.js"
   },
@@ -27,8 +28,10 @@
         "report.html",
         "report.js",
         "report.css",
+        "theme.css",
         "docsStyle.css",
-        "libs/chart.min.js"
+        "libs/chart.min.js",
+        "fonts/*"
       ],
       "matches": ["<all_urls>"]
     }
