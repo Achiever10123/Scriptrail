@@ -1,81 +1,61 @@
-/* ─── docsStyle.css — Scriptrail v2 ────────────────────────────────────────────
-   Injected into Google Docs pages by content.js.
-   Styles the "View Report" button in the Docs toolbar.
-   Aesthetic: Sharp, vibrant, elegant & functional.
-   Palette: Deep Navy, Vibrant Teal, Electric Coral, Crisp White.
-──────────────────────────────────────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════════
+   Scriptrail — toolbar button (injected into Google Docs' own titlebar)
+   Uses the system font stack — this lives inside Docs' page CSP, so no
+   custom @font-face here. Colors mirror theme.css's light-mode tokens.
+   ════════════════════════════════════════════════════════════════════════ */
 
 #scriptrailBtn {
-  appearance: none;
-  background: linear-gradient(135deg, #0d9488, #0f766e);
-  border: none;
-  border-radius: 8px;
-  box-sizing: border-box;
-  color: #ffffff;
-  cursor: pointer;
-  display: inline-block;
-  font-family: 'Inter', -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 20px;
-  padding: 6px 16px;
   position: relative;
-  text-align: center;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  vertical-align: middle;
-  white-space: nowrap;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  margin: 0 6px;
+  padding: 0 12px 0 22px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #21262c;
+  background: #ffffff;
+  border: 1px solid #cfc4a6;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
 }
 
-#scriptrailBtn:hover {
-  background: linear-gradient(135deg, #0f766e, #115e59);
-  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35);
-  transform: translateY(-1px);
+/* waypoint dot standing in for an icon */
+#scriptrailBtn::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c97f2e;
 }
 
-#scriptrailBtn:focus {
-  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.35), 0 4px 12px rgba(13, 148, 136, 0.25);
-  outline: none;
+#scriptrailBtn:hover:not(:disabled) {
+  border-color: #c97f2e;
+  background: #fbf5ea;
 }
 
-#scriptrailBtn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 4px rgba(13, 148, 136, 0.2);
+#scriptrailBtn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+#scriptrailBtn:focus-visible {
+  outline: 2px solid #c97f2e;
+  outline-offset: 2px;
 }
 
 #scriptrailBtn:disabled {
-  background: linear-gradient(135deg, #cbd5e1, #94a3b8);
-  color: #64748b;
   cursor: default;
-  box-shadow: none;
+  color: #8a9096;
+  border-color: #e3dcc9;
+  background: #faf7f0;
 }
-
-/* Tooltip for disabled state */
-.sr-tooltip-wrap {
-  position: relative;
-  display: inline-block;
-}
-
-.sr-tooltip-wrap .sr-tooltip-text {
-  visibility: hidden;
-  font-size: 12px;
-  background-color: #0f172a;
-  color: #fff;
-  text-align: center;
-  padding: 6px 12px;
-  border-radius: 8px;
-  position: absolute;
-  z-index: 9999;
-  top: 110%;
-  left: 0;
-  white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);
-  font-weight: 500;
-}
-
-.sr-tooltip-wrap:hover .sr-tooltip-text {
-  visibility: visible;
+#scriptrailBtn:disabled::before {
+  background: #cfc4a6;
 }
