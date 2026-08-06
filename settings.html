@@ -1,40 +1,81 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scriptrail - Settings</title>
-    <link rel="stylesheet" href="popup.css" />
-  </head>
-  <body>
-    <div id="settings-root">
-
-      <div class="brand">
-        <img src="icons/icon128.png" alt="Scriptrail" class="brand-icon" />
-        <h1 class="brand-name">Settings</h1>
+<head>
+  <meta charset="UTF-8" />
+  <title>Scriptrail — Settings</title>
+  <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body>
+  <div class="settings-page">
+    <header class="settings-header">
+      <div class="settings-header-inner">
+        <span class="sr-wordmark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 18c3-1 4-4 6-5.5S13 10 14 7s3-4 7-4" stroke="var(--blaze)" stroke-width="2" stroke-linecap="round" stroke-dasharray="0.1 5"/>
+            <circle cx="3" cy="18" r="2" fill="var(--pine)"/>
+            <circle cx="21" cy="3" r="2" fill="var(--blaze)"/>
+          </svg>
+          Script<em>rail</em>
+        </span>
+        <button id="themeToggleBtn" class="btn btn-ghost btn-icon" title="Toggle light / dark" aria-label="Toggle theme">🌙</button>
       </div>
+      <p class="settings-tagline">Field notes for how you write.</p>
+      <!-- decorative topographic contour band -->
+      <svg class="contour-band" viewBox="0 0 800 60" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 40 C100 10 200 55 300 30 S 500 5 600 35 S 750 50 800 20" fill="none" stroke="var(--border-strong)" stroke-width="1"/>
+        <path d="M0 52 C120 25 220 60 320 42 S 520 18 620 46 S 760 58 800 34" fill="none" stroke="var(--border-strong)" stroke-width="1" opacity="0.6"/>
+      </svg>
+    </header>
 
-      <hr class="divider" />
+    <main class="settings-main">
 
-      <!-- Language Selection -->
-      <div class="setting-row">
-        <span class="setting-label">Language</span>
-        <select id="languageSelect" class="language-select">
+      <section class="card settings-card">
+        <div class="card-heading">
+          <span class="eyebrow">Localization</span>
+          <h2>Language</h2>
+        </div>
+        <p class="card-help">Applies to the stats bar and toolbar button inside Google Docs — no reload needed.</p>
+        <select id="languageSelect" class="field-select settings-select">
           <option value="en">English</option>
           <option value="es">Español</option>
           <option value="fr">Français</option>
           <option value="de">Deutsch</option>
-          <option value="zh">中文</option>
-          <option value="ja">日本語</option>
+          <option value="pt">Português</option>
         </select>
-      </div>
+      </section>
 
-      <hr class="divider" />
+      <section class="card settings-card">
+        <div class="card-heading">
+          <span class="eyebrow">In-document panel</span>
+          <h2>Stats bar width</h2>
+        </div>
+        <p class="card-help">How wide the floating panel is inside Google Docs, in pixels.</p>
+        <div class="width-row">
+          <input type="number" id="panelWidthInput" class="field-input" min="200" max="500" step="10" value="280" />
+          <span class="width-unit">px</span>
+        </div>
+      </section>
 
-      <!-- Back Link -->
-      <a href="popup.html" class="back-link">← Back to Main</a>
+      <section class="card settings-card settings-card-danger">
+        <div class="card-heading">
+          <span class="eyebrow">Data</span>
+          <h2>Reset stored data</h2>
+        </div>
+        <p class="card-help">Clears saved writing time and cached report data for every document. This can't be undone.</p>
+        <div class="danger-row">
+          <button id="resetDataBtn" class="btn btn-danger">Reset stored data</button>
+          <span id="resetDataStatus" class="reset-status" role="status"></span>
+        </div>
+      </section>
 
-    </div>
-    <script src="settings.js"></script>
-  </body>
+    </main>
+
+    <footer class="settings-footer">
+      <span>Scriptrail v1.0</span>
+    </footer>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
 </html>
