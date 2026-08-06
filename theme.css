@@ -1,0 +1,308 @@
+/* ════════════════════════════════════════════════════════════════════════
+   Scriptrail — Design System
+   "Paper Trail" (light, default) / "Night Trail" (dark, opt-in)
+   A writing session leaves a trail: waypoints (sessions), a route (writing
+   time), and the occasional flagged marker (a copied passage). This file
+   is shared by popup.html, settings.html, and report.html.
+   ════════════════════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: "Fraunces";
+  src: url("fonts/fraunces-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fraunces";
+  src: url("fonts/fraunces-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fraunces";
+  src: url("fonts/fraunces-900.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fraunces";
+  src: url("fonts/fraunces-600-italic.woff2") format("woff2");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/inter-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/inter-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/inter-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/inter-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Tokens ────────────────────────────────────────────────────────────── */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* surfaces, light "Paper Trail" */
+  --bg: #faf7f0;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --border: #e3dcc9;
+  --border-strong: #cfc4a6;
+
+  /* text */
+  --ink: #21262c;
+  --ink-soft: #545c64;
+  --ink-faint: #8a9096;
+
+  /* accents */
+  --blaze: #c97f2e;
+  --blaze-strong: #a8661f;
+  --blaze-soft: #f2dfc0;
+  --pine: #2e7c6c;
+  --pine-soft: #d6ece7;
+  --clay: #a83f32;
+  --clay-soft: #f3d9d4;
+
+  --shadow: 0 1px 2px rgba(33, 26, 13, 0.05), 0 6px 20px -8px rgba(33, 26, 13, 0.18);
+  --shadow-sm: 0 1px 2px rgba(33, 26, 13, 0.08);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* surfaces, dark "Night Trail" */
+  --bg: #12161b;
+  --surface: #1a2027;
+  --surface-raised: #212832;
+  --border: #2b333d;
+  --border-strong: #3a4550;
+
+  /* text */
+  --ink: #f1ece0;
+  --ink-soft: #a9b1b9;
+  --ink-faint: #6e7780;
+
+  /* accents */
+  --blaze: #e3a857;
+  --blaze-strong: #f0c084;
+  --blaze-soft: #3a2f1c;
+  --pine: #5fb7a7;
+  --pine-soft: #16302b;
+  --clay: #d9776a;
+  --clay-soft: #3a1f1c;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px -10px rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+:root {
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Reset ─────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+h1, h2, h3, h4 { margin: 0; font-family: var(--font-display); font-weight: 700; }
+p { margin: 0; }
+button, select, input { font-family: inherit; font-size: inherit; color: inherit; }
+a { color: var(--pine); }
+::selection { background: var(--blaze-soft); color: var(--ink); }
+
+:focus-visible {
+  outline: 2px solid var(--blaze);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Trail rule (signature divider) ───────────────────────────────────────
+   A dashed "route" line — used wherever a plain <hr> would otherwise sit. */
+.trail-rule {
+  border: none;
+  height: 1px;
+  background-image: linear-gradient(90deg, var(--border-strong) 60%, transparent 0%);
+  background-size: 8px 1px;
+  background-repeat: repeat-x;
+  margin: var(--space-4) 0;
+}
+
+/* ── Eyebrow label ─────────────────────────────────────────────────────── */
+.eyebrow {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ── Wordmark ──────────────────────────────────────────────────────────── */
+.sr-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.sr-wordmark em {
+  font-style: italic;
+  font-weight: 600;
+  color: var(--blaze);
+}
+.sr-wordmark svg { flex: none; }
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+.btn:hover { border-color: var(--blaze); }
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: var(--blaze);
+  border-color: var(--blaze);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--blaze-strong); border-color: var(--blaze-strong); }
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+.btn-ghost:hover { border-color: var(--border-strong); }
+.btn-danger { color: var(--clay); border-color: var(--clay); background: transparent; }
+.btn-danger:hover { background: var(--clay-soft); }
+.btn-icon {
+  width: 30px; height: 30px; padding: 0; border-radius: 999px;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Switch (toggle) ───────────────────────────────────────────────────── */
+.switch { position: relative; display: inline-block; width: 38px; height: 22px; flex: none; }
+.switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.switch .track {
+  position: absolute; inset: 0;
+  background: var(--border-strong);
+  border-radius: 999px;
+  transition: background-color 0.15s ease;
+}
+.switch .thumb {
+  position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  background: var(--surface);
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease;
+}
+.switch input:checked ~ .track { background: var(--pine); }
+.switch input:checked ~ .thumb { transform: translateX(16px); }
+.switch input:focus-visible ~ .track { outline: 2px solid var(--blaze); outline-offset: 2px; }
+
+/* ── Select / Input ────────────────────────────────────────────────────── */
+.field-select, .field-input {
+  appearance: none;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.field-select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M1 1l4 4 4-4' stroke='%238a9096' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 26px;
+}
+.field-select:focus, .field-input:focus { border-color: var(--blaze); outline: none; }
+
+/* ── Card ──────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Badge ─────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: 999px;
+  background: var(--pine-soft); color: var(--pine);
+}
+.badge-flag { background: var(--clay-soft); color: var(--clay); }
+
+/* ── Waypoint dot (used as a bullet / status marker throughout) ───────── */
+.waypoint-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--blaze); flex: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--blaze) 20%, transparent);
+}
