@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════════
-   Scriptrail Report — "the trail map of a document"
+   Scriptrail Report: "the trail map of a document"
    ════════════════════════════════════════════════════════════════════════ */
 
 body { min-height: 100vh; }
@@ -90,7 +90,7 @@ body { min-height: 100vh; }
   font-variant-numeric: tabular-nums;
 }
 
-/* tooltip-wrap / tooltip-text — built by report.js for statTime/statEdits labels */
+/* tooltip-wrap / tooltip-text: built by report.js for statTime/statEdits labels */
 .tooltip-wrap { position: relative; border-bottom: 1px dotted var(--ink-faint); }
 .tooltip-text {
   position: absolute;
