@@ -28,7 +28,7 @@ const SCRIPTRAIL_I18N = {
     sessions: "🕐 Sessions",
     loading: "Scriptrail: loading…",
     calculating: "Scriptrail: calculating…",
-    loadError: "Scriptrail: couldn't load data — try reloading the page",
+    loadError: "Scriptrail: couldn't load data, try reloading the page",
     connectionLost: "Scriptrail: connection lost – reloading page…",
     viewReport: "View Report",
     reportUnavailable: "Report Unavailable",
@@ -39,7 +39,7 @@ const SCRIPTRAIL_I18N = {
     sessions: "🕐 Sesiones",
     loading: "Scriptrail: cargando…",
     calculating: "Scriptrail: calculando…",
-    loadError: "Scriptrail: no se pudieron cargar los datos — recarga la página",
+    loadError: "Scriptrail: no se pudieron cargar los datos, recarga la página",
     connectionLost: "Scriptrail: conexión perdida – recargando la página…",
     viewReport: "Ver informe",
     reportUnavailable: "Informe no disponible",
@@ -50,7 +50,7 @@ const SCRIPTRAIL_I18N = {
     sessions: "🕐 Sessions",
     loading: "Scriptrail : chargement…",
     calculating: "Scriptrail : calcul en cours…",
-    loadError: "Scriptrail : échec du chargement — rechargez la page",
+    loadError: "Scriptrail : échec du chargement, rechargez la page",
     connectionLost: "Scriptrail : connexion perdue – rechargement…",
     viewReport: "Voir le rapport",
     reportUnavailable: "Rapport indisponible",
@@ -61,7 +61,7 @@ const SCRIPTRAIL_I18N = {
     sessions: "🕐 Sitzungen",
     loading: "Scriptrail: wird geladen…",
     calculating: "Scriptrail: wird berechnet…",
-    loadError: "Scriptrail: Daten konnten nicht geladen werden — Seite neu laden",
+    loadError: "Scriptrail: Daten konnten nicht geladen werden, Seite neu laden",
     connectionLost: "Scriptrail: Verbindung verloren – Seite wird neu geladen…",
     viewReport: "Bericht anzeigen",
     reportUnavailable: "Bericht nicht verfügbar",
@@ -72,7 +72,7 @@ const SCRIPTRAIL_I18N = {
     sessions: "🕐 Sessões",
     loading: "Scriptrail: carregando…",
     calculating: "Scriptrail: calculando…",
-    loadError: "Scriptrail: falha ao carregar dados — recarregue a página",
+    loadError: "Scriptrail: falha ao carregar dados, recarregue a página",
     connectionLost: "Scriptrail: conexão perdida – recarregando a página…",
     viewReport: "Ver relatório",
     reportUnavailable: "Relatório indisponível",
@@ -142,7 +142,7 @@ function isStorageValid() {
 function isValidToken(token) {
   if (!token || typeof token !== "string") return false;
   if (token.length < SCRIPTRAIL_CONFIG.TOKEN_MIN_LENGTH) return false;
-  // Reject tokens with whitespace, quotes, angle brackets, or backslashes —
+  // Reject tokens with whitespace, quotes, angle brackets, or backslashes;
   // these are the characters that could break out of the URL/query context.
   // Real Docs tokens can legitimately contain other punctuation (=, /, +, :,
   // etc.), so we blocklist dangerous characters instead of whitelisting a
