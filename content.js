@@ -118,7 +118,7 @@ function _watchForTokenScripts() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// WRITING TIME  — MS Word style: real elapsed time while tab is active
+// WRITING TIME (MS Word style: real elapsed time while tab is active)
 // ══════════════════════════════════════════════════════════════════════════════
 let _writingMs = 0; // total accumulated ms
 let _sessionStart = null; // Date.now() when current active period began
@@ -482,7 +482,7 @@ function init() {
   updateUIFromStorage();
 
   // Data fetching drives the infobar and must run regardless of the
-  // "show/hide button" toggle — that toggle only controls button visibility.
+  // "show/hide button" toggle; that only controls button visibility.
   let polls = 0;
   function waitForToken() {
     if (!isCtxValid()) return;

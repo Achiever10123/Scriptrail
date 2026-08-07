@@ -33,8 +33,8 @@ Google Docs Page
  Key Improvements Over Aidify
 Since you're building this to be better:
 
-No server — all data stays in the browser locally (big privacy win)
-Student view — students can see their own stats too, not just teachers
-Richer events — track deletions, selections, idle gaps separately
-Visual timeline — show a graph of writing activity over time
-Multi-doc support — track across multiple documents at once
+No server: all data stays in the browser locally (big privacy win)
+Student view: students can see their own stats too, not just teachers
+Richer events: track deletions, selections, idle gaps separately
+Visual timeline: show a graph of writing activity over time
+Multi-doc support: track across multiple documents at once

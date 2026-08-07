@@ -1,6 +1,6 @@
 {
   "name": "Scriptrail",
-  "description": "Track and analyze writing activity on Google Docs — sessions, copy-paste detection, edit replay, and more.",
+  "description": "Track and analyze writing activity on Google Docs: sessions, copy-paste detection, edit replay, and more.",
   "version": "1.0",
   "manifest_version": 3,
   "permissions": ["storage", "tabs"],
@@ -31,7 +31,8 @@
         "theme.css",
         "docsStyle.css",
         "libs/chart.min.js",
-        "fonts/*"
+        "fonts/*",
+        "icons/icon128.png"
       ],
       "matches": ["<all_urls>"]
     }

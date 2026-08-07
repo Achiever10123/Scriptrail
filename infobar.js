@@ -52,7 +52,7 @@ function _loadSavedTime() {
 const _ctxOk = isCtxValid;
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CLOSE STATE  — persists across data refreshes so bar stays hidden
+// CLOSE STATE (persists across data refreshes so bar stays hidden)
 // ══════════════════════════════════════════════════════════════════════════════
 let _barDismissed = false; // user clicked ×
 let _lastCopiedCount = 0;
@@ -61,24 +61,36 @@ let _lastSessionCount = 0;
 // without needing fresh data: "loading" | "calculating" | "error" | "data"
 let _lastRenderState = "loading";
 
-// Builds the "● Scriptrail" header row shared by every bar state.
+// Builds the "Scriptrail" header row shared by every bar state.
 function _buildHeader() {
   const header = document.createElement("div");
   header.className = "sr-header";
+
+  const iconWrap = document.createElement("span");
+  iconWrap.className = "sr-header-icon";
+  const icon = document.createElement("img");
+  icon.src = chrome.runtime.getURL("icons/icon128.png");
+  icon.alt = "";
+  icon.width = 20;
+  icon.height = 20;
   const dot = document.createElement("span");
   dot.className = "sr-header-dot";
+  iconWrap.appendChild(icon);
+  iconWrap.appendChild(dot);
+
   const title = document.createElement("span");
   title.className = "sr-header-title";
   const em = document.createElement("em");
   em.textContent = "Script";
   title.appendChild(em);
   title.appendChild(document.createTextNode("rail"));
-  header.appendChild(dot);
+
+  header.appendChild(iconWrap);
   header.appendChild(title);
   return header;
 }
 
-// Renders a header (wordmark + live dot) plus a centered status message —
+// Renders a header (wordmark + live dot) plus a centered status message.
 // used for the loading / calculating / error states so they match the
 // styled "data loaded" view instead of falling back to plain text.
 function _renderStatus(bar, text) {
@@ -123,14 +135,14 @@ function _applyLanguage() {
 
 // ── Live-tick state (mirrors report.js calcSessions algorithm exactly) ────────
 // After each API refresh we store:
-//   _baseWritingTimeMs  — calcTotalWritingTime() result from the revision data
-//   _lastFetchTime      — wall-clock Date.now() when we last received fresh data
+//   _baseWritingTimeMs: calcTotalWritingTime() result from the revision data
+//   _lastFetchTime: wall-clock Date.now() when we last received fresh data
 //
 // Every second the live tick checks: is the current wall-clock time still within
 // SESSION_GAP of the last edit?  If yes, the current session is still "open" and
-// we add (now - _lastFetchTime) to _baseWritingTimeMs to get the live total —
+// we add (now - _lastFetchTime) to _baseWritingTimeMs to get the live total.
 // exactly what report.js would show if it recalculated right now.
-const _IB_SESSION_GAP = 600_000; // 10 min — must match report.js SESSION_GAP
+const _IB_SESSION_GAP = 600_000; // 10 min, must match report.js SESSION_GAP
 let _baseWritingTimeMs = 0;
 let _lastFetchTime = 0; // wall-clock time of the last API refresh
 let _liveTickInterval = null;
@@ -202,18 +214,32 @@ function createInfoBar() {
       border-bottom: 1px dashed var(--sr-border-strong);
       flex: none;
     }
+    #scriptrailInfoBar .sr-header-icon {
+      position: relative;
+      flex: none;
+      display: block;
+      line-height: 0;
+    }
+    #scriptrailInfoBar .sr-header-icon img {
+      display: block;
+      border-radius: 22%;
+      object-fit: cover;
+    }
     #scriptrailInfoBar .sr-header-dot {
+      position: absolute;
+      right: -2px; bottom: -2px;
       width: 7px; height: 7px; border-radius: 50%;
       background: var(--sr-blaze); flex: none;
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--sr-blaze) 22%, transparent);
+      border: 2px solid var(--sr-bg);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--sr-blaze) 30%, transparent);
       animation: sr-pulse 2.2s ease-in-out infinite;
     }
     @media (prefers-reduced-motion: reduce) {
       #scriptrailInfoBar .sr-header-dot { animation: none; }
     }
     @keyframes sr-pulse {
-      0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sr-blaze) 22%, transparent); }
-      50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--sr-blaze) 10%, transparent); }
+      0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--sr-blaze) 30%, transparent); }
+      50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--sr-blaze) 12%, transparent); }
     }
     #scriptrailInfoBar .sr-header-title {
       font-family: Georgia, "Times New Roman", serif;
@@ -372,7 +398,7 @@ function _renderBarContent(bar, writingTime, copiedCount, sessionCount) {
   bar.appendChild(contentDiv);
 }
 
-// Updates only the writing-time <strong> every second — never forces bar visible.
+// Updates only the writing-time <strong> every second; never forces bar visible.
 function _updateWritingTimeOnly(writingTime) {
   const bar = document.getElementById("scriptrailInfoBar");
   if (!bar || _barDismissed) return;
@@ -381,7 +407,7 @@ function _updateWritingTimeOnly(writingTime) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// LIVE TICK — updates writing time every second using the same logic as report.js
+// LIVE TICK: updates writing time every second using the same logic as report.js
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Returns what report.js calcTotalWritingTime() would return if called right now.
@@ -435,7 +461,7 @@ function getWritingSessionCount(edits) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// WRITING TIME FROM EDIT HISTORY — exact mirror of report.js calcSessions logic
+// WRITING TIME FROM EDIT HISTORY: exact mirror of report.js calcSessions logic
 // ══════════════════════════════════════════════════════════════════════════════
 function getWritingTimeFromEdits(edits) {
   // Mirrors report.js calcSessions() + calcTotalWritingTime() exactly.
@@ -593,7 +619,7 @@ function setupInfoBarListener() {
       }
 
       // writingTimeTick is still sent by content.js every second but we no
-      // longer use it — the live tick interval does the job from revision data.
+      // longer use it; the live tick interval does the job from revision data.
       if (msg?.type === "writingTimeTick") return;
 
       // ── Full data refresh from revision API ───────────────────────────────
@@ -694,7 +720,7 @@ function setupInfoBarListener() {
 setupInfoBarListener();
 
 // Load the saved language first so the initial render is already translated,
-// then check infobar visibility and show the bar with "loading…" —
+// then check infobar visibility and show the bar with "loading…",
 // _maybeShowBar() will keep it visible once data arrives.
 loadScriptrailLanguage(() => {
   chrome.storage.sync.get(["infobarEnabled", "infobarWidth"], (res) => {

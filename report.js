@@ -1,7 +1,7 @@
 // ─── report.js ────────────────────────────────────────────────────────────────
 // Runs inside report.html (the full-page report tab).
 // Mirrors Aidify's data-page logic with our own variable names and structure.
-// All data comes from the Google Docs revision API — no server needed.
+// All data comes from the Google Docs revision API. No server needed.
 // Note: utils.js must be loaded before this file (see report.html)
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -10,7 +10,7 @@
 let globalEdits = []; // all parsed edits for the document
 let globalUsers = {}; // { userId: { name, color } }
 let globalTabs = []; // ordered list of tab keys found in edits
-let tabsData = {}; // { tabKey: "Tab label" } — from localStorage
+let tabsData = {}; // { tabKey: "Tab label" }, from localStorage
 let firstContent = ""; // document content at revision 1
 
 // Alias for compatibility with utils.js naming  
@@ -19,7 +19,7 @@ const _ctxOk = typeof isCtxValid === 'function' ? isCtxValid : () => true;
 // Chart instances (kept so we can destroy before redrawing)
 let chartDate, chartTime, chartTimePerDay, chartGroupPie;
 
-// Sessions array — populated by getWritingSessions(), reused by displaySessions()
+// Sessions array, populated by getWritingSessions() and reused by displaySessions()
 let _sessions = [];
 
 const SESSIONS_PREVIEW = 3;
@@ -36,7 +36,7 @@ function applyDelete(str, si, ei) {
   return str.slice(0, si - 1) + str.slice(ei);
 }
 
-// utils.js isn't loaded on this page — report.js is standalone — so this
+// utils.js isn't loaded on this page (report.js is standalone), so this
 // mirrors utils.js's clearElement() exactly.
 function clearElement(element) {
   if (!element) return;
@@ -80,7 +80,7 @@ function lightenColor(hex, pct = 70) {
 
 const REPORT_FETCH_TIMEOUT_MS = 15000;
 
-// Local timeout wrapper — report.js runs standalone (no utils.js on this page)
+// Local timeout wrapper; report.js runs standalone (no utils.js on this page)
 async function withTimeout(promise, timeoutMs, operationName = "Operation") {
   let timeoutId;
   const timeoutPromise = new Promise((_, reject) => {
@@ -513,7 +513,7 @@ function _renderCopyCards(items, allEdits) {
       const metaP = document.createElement('p');
       metaP.className = 'copy-meta';
       const userName = globalUsers[item.userId]?.name ?? item.userId;
-      metaP.textContent = `${formatDate(item.time)} — ${userName}`;
+      metaP.textContent = `${formatDate(item.time)} by ${userName}`;
       
       const textDiv = document.createElement('div');
       textDiv.textContent = item.text;
@@ -1166,7 +1166,7 @@ function cleanUserMap(edits, rawUserMap) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 15.  ENTRY POINT — DOMContentLoaded
+// 15. ENTRY POINT: DOMContentLoaded
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Dark mode functions
@@ -1196,7 +1196,7 @@ function initializeDarkMode() {
       darkModeBtn.textContent = newTheme === "dark" ? "☀️" : "🌙";
 
       _applyChartTheme(newTheme === "dark");
-      // Redraw existing charts so their canvas colors pick up the change —
+      // Redraw existing charts so their canvas colors pick up the change.
       // CSS variables don't reach into already-rendered canvas content.
       if (globalEdits && globalEdits.length) {
         const uid = document.getElementById("userSelect")?.value || "default";
@@ -1298,8 +1298,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const totalRevs = tileData.tileInfo[tileData.tileInfo.length - 1].end;
     const rawUsers = tileData.userMap;
 
-    // 2. Fetch full changelog and first-revision content in parallel —
-    // fetchFirstContent doesn't depend on totalRevs, no need to wait for it.
+    // 2. Fetch full changelog and first-revision content in parallel.
+    // fetchFirstContent doesn't depend on totalRevs, so no need to wait for it.
     if (loadingMsg) loadingMsg.textContent = "Loading revision history…";
     const [changelogJson, firstContentResult] = await Promise.all([
       fetchChangelog(docId, token, baseurl, totalRevs),
@@ -1416,8 +1416,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.error("[Scriptrail] report error:", err);
     const timedOut = /timed out/i.test(err?.message || "");
     document.getElementById("loadingMessage").textContent = timedOut
-      ? "The connection is too slow to load this report — check your network and refresh."
-      : "An error occurred — make sure you have edit access to this document, then refresh.";
+      ? "The connection is too slow to load this report. Check your network and refresh."
+      : "An error occurred. Make sure you have edit access to this document, then refresh.";
     return;
   }
 

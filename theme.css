@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════════
-   Scriptrail — Design System
+   Scriptrail Design System
    "Paper Trail" (light, default) / "Night Trail" (dark, opt-in)
    A writing session leaves a trail: waypoints (sessions), a route (writing
    time), and the occasional flagged marker (a copied passage). This file
@@ -169,7 +169,7 @@ a { color: var(--pine); }
 }
 
 /* ── Trail rule (signature divider) ───────────────────────────────────────
-   A dashed "route" line — used wherever a plain <hr> would otherwise sit. */
+   A dashed "route" line, used wherever a plain <hr> would otherwise sit. */
 .trail-rule {
   border: none;
   height: 1px;
@@ -206,6 +206,12 @@ a { color: var(--pine); }
   color: var(--blaze);
 }
 .sr-wordmark svg { flex: none; }
+.sr-wordmark .sr-icon {
+  flex: none;
+  display: block;
+  object-fit: cover;
+  border-radius: 22%;
+}
 
 /* ── Buttons ───────────────────────────────────────────────────────────── */
 .btn {

@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
         chrome.storage.sync.set({ theme: newTheme }, () => {
           applyTheme(newTheme);
           chrome.runtime.sendMessage({ action: "themeUpdate", theme: newTheme }, () => {
-            if (chrome.runtime.lastError) { /* no Docs tab open — fine */ }
+            if (chrome.runtime.lastError) { /* no Docs tab open, that's fine */ }
           });
         });
       });
@@ -54,7 +54,7 @@ document.addEventListener("DOMContentLoaded", () => {
     chrome.storage.sync.set({ language: selectedLanguage });
     chrome.runtime.sendMessage(
       { action: "languageUpdate", language: selectedLanguage },
-      () => { if (chrome.runtime.lastError) { /* no Docs tab open — fine */ } }
+      () => { if (chrome.runtime.lastError) { /* no Docs tab open, that's fine */ } }
     );
   });
 
@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
       chrome.storage.sync.set({ infobarWidth: width });
       chrome.runtime.sendMessage(
         { action: "panelWidthUpdate", width },
-        () => { if (chrome.runtime.lastError) { /* no Docs tab open — fine */ } }
+        () => { if (chrome.runtime.lastError) { /* no Docs tab open, that's fine */ } }
       );
     });
   }
