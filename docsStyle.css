@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════════════════
-   Scriptrail — toolbar button (injected into Google Docs' own titlebar)
-   Uses the system font stack — this lives inside Docs' page CSP, so no
+   Scriptrail toolbar button (injected into Google Docs' own titlebar)
+   Uses the system font stack. This lives inside Docs' page CSP, so no
    custom @font-face here. Colors mirror theme.css's light-mode tokens.
    ════════════════════════════════════════════════════════════════════════ */
 
